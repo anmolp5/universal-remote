@@ -270,6 +270,37 @@
       color: #7dd3fc;
     }
 
+    /* Subtle Sync Controls */
+    .resync-bar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .resync-label {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+    }
+    .btn-pill {
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-pill:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: var(--text-main);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
     /* Modal Backdrop and Box */
     .modal-backdrop {
       position: fixed;
@@ -488,6 +519,11 @@
           <span class="btn-subtext">❄️ White</span>
         </button>
       </div>
+      <div class="resync-bar">
+        <span class="resync-label">State Sync:</span>
+        <button class="btn-pill" onclick="resync('bedside', 1)">Sync ON</button>
+        <button class="btn-pill" onclick="resync('bedside', 0)">Sync OFF</button>
+      </div>
     </div>
 
     <!-- Overhead Lamp (3.3V RF) -->
@@ -519,6 +555,11 @@
           <span>Cooler</span>
           <span class="btn-subtext">❄️ White</span>
         </button>
+      </div>
+      <div class="resync-bar">
+        <span class="resync-label">State Sync:</span>
+        <button class="btn-pill" onclick="resync('overhead', 1)">Sync ON</button>
+        <button class="btn-pill" onclick="resync('overhead', 0)">Sync OFF</button>
       </div>
     </div>
   </main>
@@ -742,6 +783,13 @@
 
       const cmdTopic = `${cfg.prefix}/command`;
       client.publish(cmdTopic, action, { qos: 0 });
+    }
+
+    function resync(device, state) {
+      haptic();
+      const stateStr = state ? 'on' : 'off';
+      showToast(`Resync ${device} -> ${stateStr.toUpperCase()}`);
+      sendCmd(`sync_${device}_${stateStr}`, `Sync ${device} ${stateStr.toUpperCase()}`);
     }
 
     // Auto-connect on page load

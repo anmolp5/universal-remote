@@ -341,6 +341,33 @@ bool CommandQueue::dispatchAction(const String& action) {
     handled = true;
   }
 
+  // State Resynchronization Actions (Local HTTP & Cloud MQTT)
+  else if (action.equalsIgnoreCase("sync_bedside_on")) {
+    setDeviceState("bedside", true);
+    return true;
+  } else if (action.equalsIgnoreCase("sync_bedside_off")) {
+    setDeviceState("bedside", false);
+    return true;
+  } else if (action.equalsIgnoreCase("sync_overhead_on")) {
+    setDeviceState("overhead", true);
+    return true;
+  } else if (action.equalsIgnoreCase("sync_overhead_off")) {
+    setDeviceState("overhead", false);
+    return true;
+  } else if (action.equalsIgnoreCase("sync_poster_on")) {
+    setDeviceState("poster", true);
+    return true;
+  } else if (action.equalsIgnoreCase("sync_poster_off")) {
+    setDeviceState("poster", false);
+    return true;
+  } else if (action.equalsIgnoreCase("sync_donut_on")) {
+    setDeviceState("donut", true);
+    return true;
+  } else if (action.equalsIgnoreCase("sync_donut_off")) {
+    setDeviceState("donut", false);
+    return true;
+  }
+
   if (handled) {
     notifyStateChanged();
     return true;

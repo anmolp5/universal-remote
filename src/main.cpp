@@ -370,6 +370,12 @@ void setup() {
   // Initialize IR and RF hardware pins
   cmdQueue.begin();
 
+  // Turn OFF all onboard LEDs (GPIO 2 / D4 and GPIO 16 / D0 are active-LOW)
+  pinMode(2, OUTPUT);
+  digitalWrite(2, HIGH);
+  pinMode(16, OUTPUT);
+  digitalWrite(16, HIGH);
+
   // Connect to Wi-Fi
   setupWiFi();
 

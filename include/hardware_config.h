@@ -9,10 +9,10 @@ const uint16_t IR_SEND_PIN    = 14; // D5 / GPIO14 (IR Transmitter LED)
 
 // ESP8266 Pins driving LM3046 Transistor Bases for RF Remote
 const uint8_t RF_PIN_POWER    = 12; // D6 / GPIO12
-const uint8_t RF_PIN_WARMER   = 5;  // D1 / GPIO5  (Swapped with Brighter)
+const uint8_t RF_PIN_WARMER   = 5;  // D1 / GPIO5
 const uint8_t RF_PIN_DIMMER   = 13; // D7 / GPIO13
-const uint8_t RF_PIN_COOLER   = 16; // D0 / GPIO16
-const uint8_t RF_PIN_BRIGHTER = 4;  // D2 / GPIO4  (Swapped with Warmer)
+const uint8_t RF_PIN_COOLER   = 15; // D8 / GPIO15 (Moved from D0 to disable onboard LED)
+const uint8_t RF_PIN_BRIGHTER = 4;  // D2 / GPIO4
 
 // ==========================================
 // Timing Constants (Milliseconds)

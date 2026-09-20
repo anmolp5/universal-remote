@@ -41,7 +41,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       background: radial-gradient(circle at 50% 0%, #172033 0%, var(--bg) 75%);
       color: var(--text-main);
       min-height: 100vh;
-      padding: 16px 12px 40px;
+      padding: 10px 10px 24px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -53,13 +53,13 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 16px;
-      padding: 6px 4px;
+      margin-bottom: 8px;
+      padding: 2px 4px;
     }
 
     .header-left h1 {
-      font-size: 1.35rem;
-      font-weight: 700;
+      font-size: 1.6rem;
+      font-weight: 800;
       letter-spacing: -0.02em;
       color: #ffffff;
     }
@@ -67,7 +67,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     .header-left p {
       font-size: 0.78rem;
       color: var(--text-muted);
-      margin-top: 2px;
+      margin-top: 1px;
     }
 
     .status-pill {
@@ -97,7 +97,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       max-width: 580px;
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
+      gap: 8px;
       align-items: start;
     }
 
@@ -111,23 +111,23 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       -webkit-backdrop-filter: blur(16px);
       border: 1px solid var(--card-border);
       border-radius: var(--radius);
-      padding: 15px;
+      padding: 10px 12px;
       box-shadow: var(--shadow-sm);
       transition: border-color 0.2s ease, box-shadow 0.2s ease, min-height 0.28s cubic-bezier(0.16, 1, 0.3, 1);
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      min-height: 195px;
+      min-height: 135px;
     }
 
     .card.card-banner {
       min-height: auto;
-      padding: 14px 16px;
+      padding: 10px 14px;
     }
 
     .card.card-floor {
       min-height: auto;
-      padding: 15px 16px;
+      padding: 10px 14px;
     }
 
     .card:hover {
@@ -138,12 +138,12 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
     }
 
     .card-title {
-      font-size: 0.95rem;
-      font-weight: 700;
+      font-size: 1.12rem;
+      font-weight: 800;
       letter-spacing: -0.01em;
       color: #ffffff;
     }
@@ -159,7 +159,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      padding: 3px 8px;
+      padding: 2px 7px;
       border-radius: 10px;
       background: rgba(255, 255, 255, 0.05);
       color: var(--text-muted);
@@ -182,9 +182,9 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid rgba(255, 255, 255, 0.08);
       color: var(--text-muted);
-      width: 26px;
-      height: 26px;
-      border-radius: 7px;
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -213,15 +213,16 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       flex-direction: column;
       flex: 1;
       height: 100%;
+      justify-content: center;
     }
 
     /* Buttons Base */
     button {
       background: var(--btn-bg);
       border: 1px solid var(--card-border);
-      border-radius: 12px;
+      border-radius: 10px;
       color: var(--text-main);
-      font-size: 0.88rem;
+      font-size: 0.85rem;
       font-weight: 600;
       cursor: pointer;
       display: flex;
@@ -246,15 +247,15 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     .banner-pill-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-top: 2px;
+      gap: 10px;
+      margin-top: 1px;
     }
 
     .btn-pill-wide {
-      padding: 14px 20px;
-      min-height: 52px;
+      padding: 10px 16px;
+      min-height: 42px;
       border-radius: 9999px;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       font-weight: 800;
       letter-spacing: 0.04em;
     }
@@ -274,37 +275,37 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     /* Floor Lamp Full-Width Controls Row */
     .floor-controls-row {
       display: grid;
-      grid-template-columns: 1.1fr 3.8fr;
-      gap: 10px;
+      grid-template-columns: 1fr 3.8fr;
+      gap: 8px;
       align-items: center;
     }
 
     .btn-floor-power {
       aspect-ratio: 1 / 1;
       width: 100%;
-      max-height: 72px;
-      font-size: 0.92rem;
+      max-height: 54px;
+      font-size: 0.82rem;
       font-weight: 700;
       background: rgba(56, 189, 248, 0.12);
       border-color: rgba(56, 189, 248, 0.3);
       color: #7dd3fc;
-      border-radius: 12px;
+      border-radius: 10px;
     }
 
     .floor-quad-row {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
+      gap: 6px;
     }
 
     .floor-quad-row .btn-quad {
       aspect-ratio: 1 / 1;
       width: 100%;
-      max-height: 72px;
+      max-height: 54px;
       padding: 0;
-      font-size: 0.88rem;
+      font-size: 0.82rem;
       font-weight: 600;
-      border-radius: 12px;
+      border-radius: 10px;
     }
 
     /* Square Buttons Grid for 2-button cards (Poster, Desk, Donut) */
@@ -312,20 +313,20 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       display: flex;
       justify-content: center;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
       flex: 1;
-      height: 100%;
+      padding: 2px 0;
     }
 
     .btn-square {
       aspect-ratio: 1 / 1;
       width: 100%;
-      max-width: 112px;
-      min-height: 100px;
-      font-size: 1.05rem;
+      max-width: 68px;
+      max-height: 68px;
+      font-size: 0.95rem;
       font-weight: 700;
       letter-spacing: 0.02em;
-      border-radius: 14px;
+      border-radius: 12px;
     }
 
     .btn-on {
@@ -343,22 +344,23 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     /* Bedside Morphing Card */
     .bedside-layout {
       display: grid;
-      grid-template-columns: 1fr 1.3fr;
-      gap: 8px;
+      grid-template-columns: 1fr 1.25fr;
+      gap: 6px;
       flex: 1;
-      height: 100%;
+      align-items: center;
       transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     .btn-bedside-power {
-      height: 100%;
-      min-height: 110px;
-      font-size: 0.96rem;
+      aspect-ratio: 1 / 1;
+      width: 100%;
+      max-height: 68px;
+      font-size: 0.85rem;
       font-weight: 700;
       background: rgba(56, 189, 248, 0.12);
       border-color: rgba(56, 189, 248, 0.3);
       color: #7dd3fc;
-      border-radius: 12px;
+      border-radius: 10px;
       transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
@@ -366,50 +368,50 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       display: grid;
       grid-template-columns: 1fr 1fr;
       grid-template-rows: 1fr 1fr;
-      gap: 6px;
-      height: 100%;
-      min-height: 110px;
+      gap: 5px;
       transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     .btn-quad {
       padding: 0;
-      height: 100%;
-      font-size: 0.82rem;
+      aspect-ratio: 1 / 1;
+      width: 100%;
+      max-height: 32px;
+      font-size: 0.74rem;
       font-weight: 600;
-      border-radius: 10px;
+      border-radius: 8px;
     }
 
     /* Bedside Expanded State Morph */
     #bedsideCard.expanded-morph .bedside-layout {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
     }
 
     #bedsideCard.expanded-morph .btn-bedside-power {
       width: 100%;
-      min-height: 46px;
-      height: 46px;
-      border-radius: 10px;
-      font-size: 0.92rem;
+      min-height: 36px;
+      max-height: 36px;
+      height: 36px;
+      aspect-ratio: unset;
+      border-radius: 8px;
+      font-size: 0.82rem;
     }
 
     #bedsideCard.expanded-morph .bedside-quad {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       grid-template-rows: auto;
-      gap: 6px;
+      gap: 5px;
       width: 100%;
-      min-height: 46px;
-      height: auto;
     }
 
     #bedsideCard.expanded-morph .bedside-quad .btn-quad {
       aspect-ratio: 1 / 1;
       width: 100%;
-      min-height: 46px;
-      font-size: 0.78rem;
+      max-height: 36px;
+      font-size: 0.74rem;
     }
 
     /* Inline Drawer Accordion */

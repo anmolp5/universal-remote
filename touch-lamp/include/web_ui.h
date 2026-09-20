@@ -262,7 +262,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     </div>
 
     <div class="footer-info">
-      Closed-loop sensing via Standby LED (D1 / GPIO 5)<br>
+      Closed-loop sensing via Standby LED (D5 / GPIO 14)<br>
       Electronic touch via NPN Transistor (D2 / GPIO 4)
     </div>
   </div>

@@ -455,7 +455,7 @@ void setup() {
   Serial.println(F("\n====================================================="));
   Serial.println(F("   Desk Lamp Smart Controller (ESP8266) Ready        "));
   Serial.println(F("====================================================="));
-  Serial.printf("Touch Pin (D2): GPIO %d | Sense Pin (D1): GPIO %d\n", PIN_TOUCH_CTRL, PIN_STATE_SENSE);
+  Serial.printf("Touch Pin (D2): GPIO %d | Sense Pin (D5): GPIO %d\n", PIN_TOUCH_CTRL, PIN_STATE_SENSE);
   Serial.printf("Initial Lamp State: %s\n", currentLampState ? "ON" : "OFF");
   Serial.println(F("====================================================="));
 

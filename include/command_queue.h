@@ -34,7 +34,8 @@ struct DeviceStates {
   bool posterOn;
   bool donutOn;
   bool bedsideOn;
-  bool overheadOn;
+  bool floorOn;
+  bool overheadOn; // Backward-compatible alias for floorOn
 };
 
 // Queue Engine & Hardware Interface

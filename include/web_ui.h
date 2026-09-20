@@ -389,40 +389,40 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       </div>
     </div>
 
-    <!-- Overhead / RF Remote -->
+    <!-- Floor Lamp / RF Remote -->
     <div class="card">
       <div class="card-header">
-        <div class="card-title"><span class="icon">💡</span> Overhead Lamp (3.3V RF)</div>
-        <span class="status-badge" id="overheadBadge">OFF</span>
+        <div class="card-title"><span class="icon">💡</span> Floor Lamp (3.3V RF)</div>
+        <span class="status-badge" id="floorBadge">OFF</span>
       </div>
       <div class="btn-grid grid-2" style="margin-bottom: 10px;">
-        <button class="btn-toggle" style="grid-column: span 2;" onclick="sendCmd('rf_power', 'Overhead Power')">
+        <button class="btn-toggle" style="grid-column: span 2;" onclick="sendCmd('floor_power', 'Floor Power')">
           <span>Power Toggle</span>
           <span class="btn-subtext">LM3046 Transistor Switch</span>
         </button>
       </div>
       <div class="btn-grid grid-4">
-        <button onclick="sendCmd('rf_brighter', 'Overhead Brighter')">
+        <button onclick="sendCmd('floor_brighter', 'Floor Brighter')">
           <span>Brighter</span>
           <span class="btn-subtext">▲ Bright</span>
         </button>
-        <button onclick="sendCmd('rf_dimmer', 'Overhead Dimmer')">
+        <button onclick="sendCmd('floor_dimmer', 'Floor Dimmer')">
           <span>Dimmer</span>
           <span class="btn-subtext">▼ Bright</span>
         </button>
-        <button onclick="sendCmd('rf_warmer', 'Overhead Warmer')">
+        <button onclick="sendCmd('floor_warmer', 'Floor Warmer')">
           <span>Warmer</span>
           <span class="btn-subtext">☀️ Amber</span>
         </button>
-        <button onclick="sendCmd('rf_cooler', 'Overhead Cooler')">
+        <button onclick="sendCmd('floor_cooler', 'Floor Cooler')">
           <span>Cooler</span>
           <span class="btn-subtext">❄️ White</span>
         </button>
       </div>
       <div class="resync-bar">
         <span class="resync-label">State Sync:</span>
-        <button class="btn-pill" onclick="resync('overhead', 1)">Sync ON</button>
-        <button class="btn-pill" onclick="resync('overhead', 0)">Sync OFF</button>
+        <button class="btn-pill" onclick="resync('floor', 1)">Sync ON</button>
+        <button class="btn-pill" onclick="resync('floor', 0)">Sync OFF</button>
       </div>
     </div>
   </main>
@@ -460,7 +460,9 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       updateBadge('posterBadge', data.poster);
       updateBadge('donutBadge', data.donut);
       updateBadge('bedsideBadge', data.bedside);
-      updateBadge('overheadBadge', data.overhead);
+      const floorState = data.floor !== undefined ? data.floor : data.overhead;
+      updateBadge('floorBadge', floorState);
+      updateBadge('overheadBadge', floorState);
 
       const hubState = document.getElementById('hubState');
       if (hubState) {

@@ -41,7 +41,7 @@ void printMenu() {
   Serial.println(F("  4 : ON | 5 : OFF"));
   Serial.println(F("Bedside Lamp (IR Pulse Distance):"));
   Serial.println(F("  6 : Power | 7 : Brighter | 8 : Dimmer | 9 : Warmer | 0 : Cooler"));
-  Serial.println(F("Overhead / RF Lamp:"));
+  Serial.println(F("Floor Lamp (RF):"));
   Serial.println(F("  q : Power | w : Warmer | e : Dimmer | r : Cooler | t : Brighter"));
   Serial.println(F("Master Macros:"));
   Serial.println(F("  a : ALL ON | o : ALL OFF"));

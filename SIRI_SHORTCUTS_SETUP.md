@@ -41,7 +41,7 @@ Create additional shortcuts in 10 seconds each:
 | Shortcut Name (What you say to Siri) | URL in "Get Contents of URL" |
 | :--- | :--- |
 | **"All Lights Off"** / **"Goodnight"** | `https://lights.anmolp.workers.dev/all_off` |
-| **"Turn on Overhead Light"** | `https://lights.anmolp.workers.dev/rf_power` |
+| **"Turn on Floor Lamp"** | `https://lights.anmolp.workers.dev/floor_power` |
 | **"Turn on Donut Lamp"** | `https://lights.anmolp.workers.dev/donut_on` |
 | **"Turn off Donut Lamp"** | `https://lights.anmolp.workers.dev/donut_off` |
 | **"Turn on Poster Light"** | `https://lights.anmolp.workers.dev/poster_on` |

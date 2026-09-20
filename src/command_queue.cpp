@@ -14,6 +14,7 @@ CommandQueue::CommandQueue()
   states.posterOn   = false;
   states.donutOn    = false;
   states.bedsideOn  = false;
+  states.floorOn    = false;
   states.overheadOn = false;
 }
 
@@ -175,12 +176,13 @@ void CommandQueue::enqueueRFPulse(uint8_t pin, const char* label) {
 void CommandQueue::enqueueMacroAllOn() {
   Serial.println(F("[Macro] Queuing Smart ALL ON (Instant Concurrent)..."));
 
-  // 1. RF Overhead Lamp - Trigger IMMEDIATELY at t=0 concurrently with IR
-  if (!states.overheadOn) {
-    triggerRFAsync(RF_PIN_POWER, "Overhead Lamp (Smart Turn ON - Concurrent)");
+  // 1. RF Floor Lamp - Trigger IMMEDIATELY at t=0 concurrently with IR
+  if (!states.floorOn && !states.overheadOn) {
+    triggerRFAsync(RF_PIN_POWER, "Floor Lamp (Smart Turn ON - Concurrent)");
+    states.floorOn = true;
     states.overheadOn = true;
   } else {
-    Serial.println(F("[Macro] Overhead Lamp already assumed ON, skipping toggle."));
+    Serial.println(F("[Macro] Floor Lamp already assumed ON, skipping toggle."));
   }
 
   // 2. Donut Lamp ON (Trigger FIRST in IR queue: NEC 0x0000 / 0x40)
@@ -206,12 +208,13 @@ void CommandQueue::enqueueMacroAllOn() {
 void CommandQueue::enqueueMacroAllOff() {
   Serial.println(F("[Macro] Queuing Smart ALL OFF (Instant Concurrent)..."));
 
-  // 1. RF Overhead Lamp - Trigger IMMEDIATELY at t=0 concurrently with IR
-  if (states.overheadOn) {
-    triggerRFAsync(RF_PIN_POWER, "Overhead Lamp (Smart Turn OFF - Concurrent)");
+  // 1. RF Floor Lamp - Trigger IMMEDIATELY at t=0 concurrently with IR
+  if (states.floorOn || states.overheadOn) {
+    triggerRFAsync(RF_PIN_POWER, "Floor Lamp (Smart Turn OFF - Concurrent)");
+    states.floorOn = false;
     states.overheadOn = false;
   } else {
-    Serial.println(F("[Macro] Overhead Lamp already assumed OFF, skipping toggle."));
+    Serial.println(F("[Macro] Floor Lamp already assumed OFF, skipping toggle."));
   }
 
   // 2. Donut Lamp OFF (Trigger FIRST in IR queue: NEC 0x0000 / 0x41)
@@ -258,9 +261,10 @@ void CommandQueue::setDeviceState(const String& device, bool state) {
   if (device.equalsIgnoreCase("bedside")) {
     states.bedsideOn = state;
     Serial.printf("[Resync] Bedside Lamp state manually set to %s\n", state ? "ON" : "OFF");
-  } else if (device.equalsIgnoreCase("overhead")) {
+  } else if (device.equalsIgnoreCase("floor") || device.equalsIgnoreCase("overhead")) {
+    states.floorOn = state;
     states.overheadOn = state;
-    Serial.printf("[Resync] Overhead Lamp state manually set to %s\n", state ? "ON" : "OFF");
+    Serial.printf("[Resync] Floor Lamp state manually set to %s\n", state ? "ON" : "OFF");
   } else if (device.equalsIgnoreCase("poster")) {
     states.posterOn = state;
     Serial.printf("[Resync] Poster Light state manually set to %s\n", state ? "ON" : "OFF");
@@ -272,12 +276,13 @@ void CommandQueue::setDeviceState(const String& device, bool state) {
 }
 
 String CommandQueue::getStatesJson() const {
-  char buf[160];
+  char buf[180];
   snprintf(buf, sizeof(buf),
-    "{\"poster\":%s,\"donut\":%s,\"bedside\":%s,\"overhead\":%s,\"busy\":%s}",
+    "{\"poster\":%s,\"donut\":%s,\"bedside\":%s,\"floor\":%s,\"overhead\":%s,\"busy\":%s}",
     states.posterOn ? "true" : "false",
     states.donutOn ? "true" : "false",
     states.bedsideOn ? "true" : "false",
+    states.floorOn ? "true" : "false",
     states.overheadOn ? "true" : "false",
     isBusy() ? "true" : "false"
   );
@@ -341,22 +346,23 @@ bool CommandQueue::dispatchAction(const String& action) {
     handled = true;
   }
 
-  // RF Overhead Lamp
-  else if (action.equalsIgnoreCase("rf_power") || action == "q") {
-    enqueueRFPulse(RF_PIN_POWER, "RF Overhead Power Toggle");
-    states.overheadOn = !states.overheadOn;
+  // RF Floor Lamp (formerly Overhead)
+  else if (action.equalsIgnoreCase("floor_power") || action.equalsIgnoreCase("rf_power") || action.equalsIgnoreCase("overhead_power") || action == "q") {
+    enqueueRFPulse(RF_PIN_POWER, "RF Floor Lamp Power Toggle");
+    states.floorOn = !states.floorOn;
+    states.overheadOn = states.floorOn;
     handled = true;
-  } else if (action.equalsIgnoreCase("rf_warmer") || action == "w") {
-    enqueueRFPulse(RF_PIN_WARMER, "RF Overhead Warmer");
+  } else if (action.equalsIgnoreCase("floor_warmer") || action.equalsIgnoreCase("rf_warmer") || action.equalsIgnoreCase("overhead_warmer") || action == "w") {
+    enqueueRFPulse(RF_PIN_WARMER, "RF Floor Lamp Warmer");
     handled = true;
-  } else if (action.equalsIgnoreCase("rf_dimmer") || action == "e") {
-    enqueueRFPulse(RF_PIN_DIMMER, "RF Overhead Dimmer");
+  } else if (action.equalsIgnoreCase("floor_dimmer") || action.equalsIgnoreCase("rf_dimmer") || action.equalsIgnoreCase("overhead_dimmer") || action == "e") {
+    enqueueRFPulse(RF_PIN_DIMMER, "RF Floor Lamp Dimmer");
     handled = true;
-  } else if (action.equalsIgnoreCase("rf_cooler") || action == "r") {
-    enqueueRFPulse(RF_PIN_COOLER, "RF Overhead Cooler");
+  } else if (action.equalsIgnoreCase("floor_cooler") || action.equalsIgnoreCase("rf_cooler") || action.equalsIgnoreCase("overhead_cooler") || action == "r") {
+    enqueueRFPulse(RF_PIN_COOLER, "RF Floor Lamp Cooler");
     handled = true;
-  } else if (action.equalsIgnoreCase("rf_brighter") || action == "t") {
-    enqueueRFPulse(RF_PIN_BRIGHTER, "RF Overhead Brighter");
+  } else if (action.equalsIgnoreCase("floor_brighter") || action.equalsIgnoreCase("rf_brighter") || action.equalsIgnoreCase("overhead_brighter") || action == "t") {
+    enqueueRFPulse(RF_PIN_BRIGHTER, "RF Floor Lamp Brighter");
     handled = true;
   }
 
@@ -376,11 +382,11 @@ bool CommandQueue::dispatchAction(const String& action) {
   } else if (action.equalsIgnoreCase("sync_bedside_off")) {
     setDeviceState("bedside", false);
     return true;
-  } else if (action.equalsIgnoreCase("sync_overhead_on")) {
-    setDeviceState("overhead", true);
+  } else if (action.equalsIgnoreCase("sync_floor_on") || action.equalsIgnoreCase("sync_overhead_on")) {
+    setDeviceState("floor", true);
     return true;
-  } else if (action.equalsIgnoreCase("sync_overhead_off")) {
-    setDeviceState("overhead", false);
+  } else if (action.equalsIgnoreCase("sync_floor_off") || action.equalsIgnoreCase("sync_overhead_off")) {
+    setDeviceState("floor", false);
     return true;
   } else if (action.equalsIgnoreCase("sync_poster_on")) {
     setDeviceState("poster", true);

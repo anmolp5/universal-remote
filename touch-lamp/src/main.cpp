@@ -164,8 +164,8 @@ void updatePulseQueue() {
       break;
 
     case PULSE_VERIFY_OFF:
-      // Allow 300ms settling time for lamp driver & LED
-      if (now - pQueue.stateStartTime >= 300) {
+      // Allow 180ms settling time for lamp driver & LED
+      if (now - pQueue.stateStartTime >= 180) {
         if (!isLampOn()) {
           Serial.println(F("[OFF] Closed-loop verified: Standby LED lit, Lamp is OFF."));
           pQueue.state = PULSE_IDLE;

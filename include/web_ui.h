@@ -8,27 +8,24 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#0d1117">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Universal Remote</title>
   <style>
     :root {
       --bg: #090d16;
-      --card-bg: rgba(22, 27, 34, 0.75);
+      --card-bg: rgba(22, 27, 39, 0.75);
       --card-border: rgba(255, 255, 255, 0.08);
-      --text-main: #f0f6fc;
-      --text-muted: #8b949e;
-      --accent-on: #2ea043;
-      --accent-off: #da3633;
-      --accent-cyan: #38bdf8;
-      --accent-amber: #f59e0b;
-      --accent-purple: #a855f7;
-      --accent-blue: #3b82f6;
-      --btn-bg: #21262d;
-      --btn-border: #30363d;
-      --btn-hover: #30363d;
-      --shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      --card-hover-border: rgba(56, 189, 248, 0.28);
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent-blue: #38bdf8;
+      --btn-bg: rgba(255, 255, 255, 0.05);
+      --btn-hover: rgba(255, 255, 255, 0.12);
+      --status-on: #10b981;
+      --status-off: #475569;
+      --status-warn: #f59e0b;
+      --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.3);
+      --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.45);
+      --radius: 16px;
     }
 
     * {
@@ -40,11 +37,11 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       background: radial-gradient(circle at 50% 0%, #172033 0%, var(--bg) 75%);
       color: var(--text-main);
       min-height: 100vh;
-      padding: 20px 16px 40px;
+      padding: 16px 12px 40px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -52,54 +49,56 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
     header {
       width: 100%;
-      max-width: 600px;
-      margin-bottom: 20px;
+      max-width: 580px;
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding-bottom: 12px;
-      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 16px;
+      padding: 6px 4px;
     }
 
-    .title-group h1 {
+    .header-left h1 {
       font-size: 1.35rem;
       font-weight: 700;
       letter-spacing: -0.02em;
+      color: #ffffff;
     }
 
-    .title-group p {
+    .header-left p {
       font-size: 0.78rem;
       color: var(--text-muted);
       margin-top: 2px;
     }
 
-    .connection-badge {
+    .status-pill {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      font-size: 0.72rem;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
       font-weight: 600;
-      padding: 4px 10px;
-      border-radius: 9999px;
-      background: rgba(46, 160, 67, 0.15);
-      color: #3fb950;
-      border: 1px solid rgba(46, 160, 67, 0.3);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      color: var(--status-on);
     }
 
     .pulse-dot {
-      width: 6px;
-      height: 6px;
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
-      background: currentColor;
-      box-shadow: 0 0 8px currentColor;
+      background: var(--status-on);
+      box-shadow: 0 0 8px var(--status-on);
     }
 
+    /* 2x3 Grid Container */
     main {
       width: 100%;
-      max-width: 600px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
+      max-width: 580px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      align-items: start;
     }
 
     .card {
@@ -107,176 +106,268 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border: 1px solid var(--card-border);
-      border-radius: 16px;
-      padding: 16px;
-      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+      padding: 14px;
+      box-shadow: var(--shadow-sm);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 155px;
+    }
+
+    .card:hover {
+      border-color: var(--card-hover-border);
     }
 
     .card-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
     }
 
     .card-title {
-      font-size: 0.95rem;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #ffffff;
     }
 
-    .card-title span.icon {
-      font-size: 1.1rem;
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
 
     .status-badge {
-      font-size: 0.68rem;
+      font-size: 0.65rem;
       font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
-      padding: 3px 8px;
-      border-radius: 6px;
-      background: rgba(255, 255, 255, 0.06);
+      letter-spacing: 0.04em;
+      padding: 2px 7px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.05);
       color: var(--text-muted);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      transition: all 0.25s ease;
+      border: 1px solid rgba(255, 255, 255, 0.06);
     }
 
     .status-badge.on {
-      background: rgba(46, 160, 67, 0.2);
-      color: #56d364;
-      border-color: rgba(46, 160, 67, 0.4);
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border-color: rgba(16, 185, 129, 0.3);
     }
 
     .status-badge.off {
-      background: rgba(218, 54, 51, 0.2);
-      color: #f85149;
-      border-color: rgba(218, 54, 51, 0.4);
+      background: rgba(255, 255, 255, 0.04);
+      color: #64748b;
+      border-color: rgba(255, 255, 255, 0.06);
+    }
+
+    .btn-expand {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      padding: 0;
+    }
+
+    .btn-expand:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .btn-expand svg {
+      transition: transform 0.25s ease;
+    }
+
+    .btn-expand.expanded svg {
+      transform: rotate(180deg);
+      stroke: var(--accent-blue);
+    }
+
+    .card-body {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      justify-content: flex-end;
     }
 
     .btn-grid {
       display: grid;
-      gap: 10px;
+      gap: 8px;
     }
 
     .grid-2 { grid-template-columns: repeat(2, 1fr); }
-    .grid-3 { grid-template-columns: repeat(3, 1fr); }
-    .grid-4 { grid-template-columns: repeat(2, 1fr); }
-    @media (min-width: 480px) {
-      .grid-4 { grid-template-columns: repeat(4, 1fr); }
-    }
+    .grid-4 { grid-template-columns: repeat(4, 1fr); }
 
+    /* Buttons */
     button {
-      appearance: none;
-      touch-action: manipulation;
-      border: 1px solid var(--btn-border);
       background: var(--btn-bg);
-      color: var(--text-main);
-      font-size: 0.88rem;
-      font-weight: 600;
-      padding: 12px 14px;
+      border: 1px solid var(--card-border);
       border-radius: 10px;
+      color: var(--text-main);
+      padding: 12px 6px;
+      font-size: 0.84rem;
+      font-weight: 600;
       cursor: pointer;
-      display: inline-flex;
+      display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 4px;
-      transition: all 0.15s ease;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      transition: all 0.12s ease;
+      touch-action: manipulation;
+    }
+
+    button:hover {
+      background: var(--btn-hover);
+      border-color: rgba(255, 255, 255, 0.16);
     }
 
     button:active {
-      transform: scale(0.96);
+      transform: scale(0.97);
       filter: brightness(1.2);
     }
 
-    .btn-subtext {
-      font-size: 0.65rem;
-      font-weight: 400;
-      color: var(--text-muted);
-    }
-
-    /* Master Buttons */
-    .btn-master-on {
-      background: linear-gradient(135deg, #1b4b27 0%, #238636 100%);
-      border-color: #2ea043;
-      color: #ffffff;
-    }
-    .btn-master-off {
-      background: linear-gradient(135deg, #4d1819 0%, #b62324 100%);
-      border-color: #da3633;
-      color: #ffffff;
-    }
-
-    /* Primary Accent Buttons */
     .btn-on {
-      background: rgba(46, 160, 67, 0.15);
-      border-color: rgba(46, 160, 67, 0.35);
-      color: #56d364;
-    }
-    .btn-off {
-      background: rgba(218, 54, 51, 0.15);
-      border-color: rgba(218, 54, 51, 0.35);
-      color: #f85149;
-    }
-    .btn-color {
-      background: rgba(168, 85, 247, 0.15);
-      border-color: rgba(168, 85, 247, 0.35);
-      color: #c084fc;
-    }
-    .btn-toggle {
-      background: rgba(59, 130, 246, 0.15);
-      border-color: rgba(59, 130, 246, 0.35);
-      color: #60a5fa;
+      background: rgba(16, 185, 129, 0.15);
+      border-color: rgba(16, 185, 129, 0.35);
+      color: #34d399;
     }
 
-    /* Subtle Sync Controls */
+    .btn-off {
+      background: rgba(239, 68, 68, 0.12);
+      border-color: rgba(239, 68, 68, 0.3);
+      color: #fca5a5;
+    }
+
+    .btn-master-on {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.25) 100%);
+      border-color: rgba(16, 185, 129, 0.4);
+      color: #6ee7b7;
+    }
+
+    .btn-master-off {
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(185, 28, 28, 0.2) 100%);
+      border-color: rgba(239, 68, 68, 0.35);
+      color: #fca5a5;
+    }
+
+    /* Split layout for Bedside & Floor (Power on left, Quad on right) */
+    .split-layout {
+      display: grid;
+      grid-template-columns: 1fr 1.35fr;
+      gap: 6px;
+      flex: 1;
+    }
+
+    .btn-power-tall {
+      height: 100%;
+      min-height: 84px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      background: rgba(56, 189, 248, 0.12);
+      border-color: rgba(56, 189, 248, 0.3);
+      color: #7dd3fc;
+    }
+
+    .quad-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 5px;
+      height: 100%;
+    }
+
+    .btn-quad {
+      padding: 6px 2px;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+
+    /* Inline Drawer Accordion */
+    .drawer {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .drawer.open {
+      grid-template-rows: 1fr;
+    }
+
+    .drawer-inner {
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .drawer.open .drawer-inner {
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      margin-top: 8px;
+    }
+
+    .btn-wide {
+      width: 100%;
+      padding: 10px;
+    }
+
     .resync-bar {
       display: flex;
       align-items: center;
       justify-content: flex-end;
       gap: 6px;
-      margin-top: 10px;
-      padding-top: 8px;
-      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      padding-top: 2px;
     }
+
     .resync-label {
-      font-size: 0.68rem;
+      font-size: 0.65rem;
       color: var(--text-muted);
     }
+
     .btn-pill {
-      font-size: 0.68rem;
-      padding: 4px 8px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 3px 8px;
       border-radius: 6px;
       background: rgba(255, 255, 255, 0.05);
       border: 1px solid rgba(255, 255, 255, 0.1);
       color: var(--text-muted);
+      cursor: pointer;
     }
 
-    /* Toast Notification */
+    .btn-pill:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: var(--text-main);
+    }
+
     #toast {
       position: fixed;
       bottom: 24px;
       left: 50%;
-      transform: translateX(-50%) translateY(100px);
-      background: #21262d;
+      transform: translateX(-50%) translateY(80px);
+      background: rgba(22, 27, 39, 0.95);
+      backdrop-filter: blur(12px);
       color: var(--text-main);
-      border: 1px solid var(--btn-border);
-      padding: 10px 20px;
-      border-radius: 9999px;
-      font-size: 0.8rem;
+      padding: 8px 18px;
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      font-size: 0.82rem;
       font-weight: 600;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      pointer-events: none;
+      box-shadow: var(--shadow-lg);
       opacity: 0;
-      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-      z-index: 1000;
+      transition: transform 0.22s ease, opacity 0.22s ease;
+      pointer-events: none;
+      z-index: 200;
     }
 
     #toast.show {
@@ -288,165 +379,172 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 <body>
 
   <header>
-    <div class="title-group">
-      <h1>Smart Lighting Hub</h1>
-      <p>ESP8266 IR + RF Controller</p>
+    <div class="header-left">
+      <h1>Universal Remote</h1>
+      <p>Local Lighting Hub</p>
     </div>
-    <div class="connection-badge" id="netBadge">
+    <div class="status-pill">
       <span class="pulse-dot"></span>
-      <span>Online</span>
+      <span id="netBadge">LAN Live</span>
     </div>
   </header>
 
   <main>
-    <!-- Master Controls -->
+    <!-- Card 1: Poster Light -->
     <div class="card">
       <div class="card-header">
-        <div class="card-title"><span class="icon">✨</span> Master Macros</div>
-        <span class="status-badge" id="hubState">Ready</span>
+        <div class="card-title">Poster</div>
+        <div class="header-right">
+          <span class="status-badge" id="posterBadge">OFF</span>
+          <button class="btn-expand" onclick="toggleDrawer('posterDrawer', this)" aria-label="Expand">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+        </div>
       </div>
-      <div class="btn-grid grid-2">
-        <button class="btn-master-on" onclick="sendCmd('all_on', 'All Lights ON')">
-          <span>ALL ON</span>
-          <span class="btn-subtext">Smart Sequential</span>
-        </button>
-        <button class="btn-master-off" onclick="sendCmd('all_off', 'All Lights OFF')">
-          <span>ALL OFF</span>
-          <span class="btn-subtext">Smart Sequential</span>
-        </button>
+      <div class="card-body">
+        <div class="btn-grid grid-2">
+          <button class="btn-on" onclick="sendCmd('poster_on', 'Poster ON')">ON</button>
+          <button class="btn-off" onclick="sendCmd('poster_off', 'Poster OFF')">OFF</button>
+        </div>
+      </div>
+      <div class="drawer" id="posterDrawer">
+        <div class="drawer-inner">
+          <button class="btn-wide" onclick="sendCmd('poster_color', 'Poster Color')">Color Cycle</button>
+        </div>
       </div>
     </div>
 
-    <!-- Poster Light -->
+    <!-- Card 2: Donut Lamp -->
     <div class="card">
       <div class="card-header">
-        <div class="card-title"><span class="icon">🖼️</span> Poster Light (IR NEC)</div>
-        <span class="status-badge" id="posterBadge">OFF</span>
+        <div class="card-title">Donut</div>
+        <div class="header-right">
+          <span class="status-badge" id="donutBadge">OFF</span>
+        </div>
       </div>
-      <div class="btn-grid grid-3">
-        <button class="btn-on" onclick="sendCmd('poster_on', 'Poster Light ON')">
-          <span>ON</span>
-        </button>
-        <button class="btn-off" onclick="sendCmd('poster_off', 'Poster Light OFF')">
-          <span>OFF</span>
-        </button>
-        <button class="btn-color" onclick="sendCmd('poster_color', 'Poster Color Cycle')">
-          <span>Color</span>
-        </button>
+      <div class="card-body">
+        <div class="btn-grid grid-2">
+          <button class="btn-on" onclick="sendCmd('donut_on', 'Donut ON')">ON</button>
+          <button class="btn-off" onclick="sendCmd('donut_off', 'Donut OFF')">OFF</button>
+        </div>
       </div>
     </div>
 
-    <!-- Donut Lamp -->
+    <!-- Card 3: Bedside Lamp -->
     <div class="card">
       <div class="card-header">
-        <div class="card-title"><span class="icon">🍩</span> Donut Lamp (IR NEC)</div>
-        <span class="status-badge" id="donutBadge">OFF</span>
+        <div class="card-title">Bedside</div>
+        <div class="header-right">
+          <span class="status-badge" id="bedsideBadge">OFF</span>
+          <button class="btn-expand" onclick="toggleDrawer('bedsideDrawer', this)" aria-label="Expand">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+        </div>
       </div>
-      <div class="btn-grid grid-2">
-        <button class="btn-on" onclick="sendCmd('donut_on', 'Donut Lamp ON')">
-          <span>ON</span>
-        </button>
-        <button class="btn-off" onclick="sendCmd('donut_off', 'Donut Lamp OFF')">
-          <span>OFF</span>
-        </button>
+      <div class="card-body">
+        <div class="split-layout">
+          <button class="btn-power-tall" onclick="sendCmd('bedside_power', 'Bedside Power')">Power</button>
+          <div class="quad-grid">
+            <button class="btn-quad" onclick="sendCmd('bedside_brighter', 'Bedside Brighter')" title="Brighter">▲</button>
+            <button class="btn-quad" onclick="sendCmd('bedside_dimmer', 'Bedside Dimmer')" title="Dimmer">▼</button>
+            <button class="btn-quad" onclick="sendCmd('bedside_warmer', 'Bedside Warmer')">Warm</button>
+            <button class="btn-quad" onclick="sendCmd('bedside_cooler', 'Bedside Cooler')">Cool</button>
+          </div>
+        </div>
+      </div>
+      <div class="drawer" id="bedsideDrawer">
+        <div class="drawer-inner">
+          <div class="btn-grid grid-4">
+            <button onclick="sendCmd('bedside_brighter', 'Bedside Brighter')">Brighter</button>
+            <button onclick="sendCmd('bedside_dimmer', 'Bedside Dimmer')">Dimmer</button>
+            <button onclick="sendCmd('bedside_warmer', 'Bedside Warmer')">Warmer</button>
+            <button onclick="sendCmd('bedside_cooler', 'Bedside Cooler')">Cooler</button>
+          </div>
+          <div class="resync-bar">
+            <span class="resync-label">Sync:</span>
+            <button class="btn-pill" onclick="resync('bedside', 1)">ON</button>
+            <button class="btn-pill" onclick="resync('bedside', 0)">OFF</button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Bedside Lamp -->
+    <!-- Card 4: Floor Lamp -->
     <div class="card">
       <div class="card-header">
-        <div class="card-title"><span class="icon">🛏️</span> Bedside Lamp (IR Pulse)</div>
-        <span class="status-badge" id="bedsideBadge">OFF</span>
+        <div class="card-title">Floor</div>
+        <div class="header-right">
+          <span class="status-badge" id="floorBadge">OFF</span>
+          <button class="btn-expand" onclick="toggleDrawer('floorDrawer', this)" aria-label="Expand">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+        </div>
       </div>
-      <div class="btn-grid grid-2" style="margin-bottom: 10px;">
-        <button class="btn-toggle" style="grid-column: span 2;" onclick="sendCmd('bedside_power', 'Bedside Power')">
-          <span>Power Toggle</span>
-          <span class="btn-subtext">10-bit Pulse Distance</span>
-        </button>
+      <div class="card-body">
+        <div class="split-layout">
+          <button class="btn-power-tall" onclick="sendCmd('floor_power', 'Floor Power')">Power</button>
+          <div class="quad-grid">
+            <button class="btn-quad" onclick="sendCmd('floor_brighter', 'Floor Brighter')" title="Brighter">▲</button>
+            <button class="btn-quad" onclick="sendCmd('floor_dimmer', 'Floor Dimmer')" title="Dimmer">▼</button>
+            <button class="btn-quad" onclick="sendCmd('floor_warmer', 'Floor Warmer')">Warm</button>
+            <button class="btn-quad" onclick="sendCmd('floor_cooler', 'Floor Cooler')">Cool</button>
+          </div>
+        </div>
       </div>
-      <div class="btn-grid grid-4">
-        <button onclick="sendCmd('bedside_brighter', 'Bedside Brighter')">
-          <span>Brighter</span>
-          <span class="btn-subtext">▲ Bright</span>
-        </button>
-        <button onclick="sendCmd('bedside_dimmer', 'Bedside Dimmer')">
-          <span>Dimmer</span>
-          <span class="btn-subtext">▼ Bright</span>
-        </button>
-        <button onclick="sendCmd('bedside_warmer', 'Bedside Warmer')">
-          <span>Warmer</span>
-          <span class="btn-subtext">☀️ Amber</span>
-        </button>
-        <button onclick="sendCmd('bedside_cooler', 'Bedside Cooler')">
-          <span>Cooler</span>
-          <span class="btn-subtext">❄️ White</span>
-        </button>
-      </div>
-      <div class="resync-bar">
-        <span class="resync-label">State Sync:</span>
-        <button class="btn-pill" onclick="resync('bedside', 1)">Sync ON</button>
-        <button class="btn-pill" onclick="resync('bedside', 0)">Sync OFF</button>
+      <div class="drawer" id="floorDrawer">
+        <div class="drawer-inner">
+          <div class="btn-grid grid-4">
+            <button onclick="sendCmd('floor_brighter', 'Floor Brighter')">Brighter</button>
+            <button onclick="sendCmd('floor_dimmer', 'Floor Dimmer')">Dimmer</button>
+            <button onclick="sendCmd('floor_warmer', 'Floor Warmer')">Warmer</button>
+            <button onclick="sendCmd('floor_cooler', 'Floor Cooler')">Cooler</button>
+          </div>
+          <div class="resync-bar">
+            <span class="resync-label">Sync:</span>
+            <button class="btn-pill" onclick="resync('floor', 1)">ON</button>
+            <button class="btn-pill" onclick="resync('floor', 0)">OFF</button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Floor Lamp / RF Remote -->
+    <!-- Card 5: Desk Lamp -->
     <div class="card">
       <div class="card-header">
-        <div class="card-title"><span class="icon">💡</span> Floor Lamp (3.3V RF)</div>
-        <span class="status-badge" id="floorBadge">OFF</span>
+        <div class="card-title">Desk</div>
+        <div class="header-right">
+          <span class="status-badge" id="deskBadge">OFF</span>
+          <button class="btn-expand" onclick="toggleDrawer('deskDrawer', this)" aria-label="Expand">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+        </div>
       </div>
-      <div class="btn-grid grid-2" style="margin-bottom: 10px;">
-        <button class="btn-toggle" style="grid-column: span 2;" onclick="sendCmd('floor_power', 'Floor Power')">
-          <span>Power Toggle</span>
-          <span class="btn-subtext">LM3046 Transistor Switch</span>
-        </button>
+      <div class="card-body">
+        <div class="btn-grid grid-2">
+          <button class="btn-on" onclick="sendDeskCmd('ON', 'Desk ON')">ON</button>
+          <button class="btn-off" onclick="sendDeskCmd('OFF', 'Desk OFF')">OFF</button>
+        </div>
       </div>
-      <div class="btn-grid grid-4">
-        <button onclick="sendCmd('floor_brighter', 'Floor Brighter')">
-          <span>Brighter</span>
-          <span class="btn-subtext">▲ Bright</span>
-        </button>
-        <button onclick="sendCmd('floor_dimmer', 'Floor Dimmer')">
-          <span>Dimmer</span>
-          <span class="btn-subtext">▼ Bright</span>
-        </button>
-        <button onclick="sendCmd('floor_warmer', 'Floor Warmer')">
-          <span>Warmer</span>
-          <span class="btn-subtext">☀️ Amber</span>
-        </button>
-        <button onclick="sendCmd('floor_cooler', 'Floor Cooler')">
-          <span>Cooler</span>
-          <span class="btn-subtext">❄️ White</span>
-        </button>
-      </div>
-      <div class="resync-bar">
-        <span class="resync-label">State Sync:</span>
-        <button class="btn-pill" onclick="resync('floor', 1)">Sync ON</button>
-        <button class="btn-pill" onclick="resync('floor', 0)">Sync OFF</button>
+      <div class="drawer" id="deskDrawer">
+        <div class="drawer-inner">
+          <button class="btn-wide" onclick="sendDeskCmd('TAP', 'Desk Cycle Color')">Cycle Color</button>
+        </div>
       </div>
     </div>
 
-    <!-- Desk Lamp (Smart Touch) -->
+    <!-- Card 6: All Lights -->
     <div class="card">
       <div class="card-header">
-        <div class="card-title"><span class="icon">🏮</span> Desk Lamp (Smart Touch)</div>
-        <span class="status-badge" id="deskBadge">OFF</span>
+        <div class="card-title">All Lights</div>
+        <div class="header-right">
+          <span class="status-badge" id="hubState">Ready</span>
+        </div>
       </div>
-      <div class="btn-grid grid-2" style="margin-bottom: 10px;">
-        <button class="btn-on" onclick="sendCmd('desk_on', 'Desk Lamp ON (Warm White)')">
-          <span>Turn ON</span>
-          <span class="btn-subtext">☀️ Warm White (2x)</span>
-        </button>
-        <button class="btn-off" onclick="sendCmd('desk_off', 'Desk Lamp OFF')">
-          <span>Turn OFF</span>
-          <span class="btn-subtext">Closed-Loop Sense</span>
-        </button>
-      </div>
-      <div class="btn-grid" style="grid-template-columns: 1fr;">
-        <button onclick="sendCmd('desk_tap', 'Desk Lamp Cycle / Tap (1x)')">
-          <span>Cycle Color / Tap (1x)</span>
-          <span class="btn-subtext">Single Touch Pulse</span>
-        </button>
+      <div class="card-body">
+        <div class="btn-grid grid-2">
+          <button class="btn-master-on" onclick="sendCmd('all_on', 'ALL ON')">ALL ON</button>
+          <button class="btn-master-off" onclick="sendCmd('all_off', 'ALL OFF')">ALL OFF</button>
+        </div>
       </div>
     </div>
   </main>
@@ -472,6 +570,16 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       }
     }
 
+    function toggleDrawer(drawerId, btn) {
+      haptic();
+      const drawer = document.getElementById(drawerId);
+      if (!drawer) return;
+      const isOpen = drawer.classList.toggle('open');
+      if (btn) {
+        btn.classList.toggle('expanded', isOpen);
+      }
+    }
+
     function updateBadge(id, isOn) {
       const el = document.getElementById(id);
       if (!el) return;
@@ -486,14 +594,13 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       updateBadge('bedsideBadge', data.bedside);
       const floorState = data.floor !== undefined ? data.floor : data.overhead;
       updateBadge('floorBadge', floorState);
-      updateBadge('overheadBadge', floorState);
       if (data.desk !== undefined) {
         updateBadge('deskBadge', data.desk);
       }
 
       const hubState = document.getElementById('hubState');
       if (hubState) {
-        hubState.textContent = data.busy ? 'Busy...' : 'Ready';
+        hubState.textContent = data.busy ? 'Busy' : 'Ready';
         hubState.className = 'status-badge ' + (data.busy ? 'on' : '');
       }
     }
@@ -516,9 +623,21 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       }
     }
 
+    async function sendDeskCmd(action, label) {
+      haptic();
+      showToast(label || action);
+      try {
+        const cmd = action === 'ON' ? 'desk_on' : (action === 'OFF' ? 'desk_off' : 'desk_tap');
+        const res = await fetch(`/api/${cmd}`, { method: 'POST' });
+        if (res.ok) {
+          setTimeout(pollStatus, 250);
+        }
+      } catch(e) {}
+    }
+
     async function resync(device, state) {
       haptic();
-      showToast(`Resynced ${device} -> ${state ? 'ON' : 'OFF'}`);
+      showToast(`Sync ${device} -> ${state ? 'ON' : 'OFF'}`);
       try {
         const res = await fetch(`/api/resync?device=${encodeURIComponent(device)}&state=${state}`, {
           method: 'POST'
@@ -547,9 +666,10 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       }
     }
 
-    // Initial poll and recurring poll every 2.5s
-    pollStatus();
-    setInterval(pollStatus, 2500);
+    window.addEventListener('DOMContentLoaded', () => {
+      pollStatus();
+      setInterval(pollStatus, 2000);
+    });
   </script>
 </body>
 </html>

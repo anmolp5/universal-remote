@@ -425,6 +425,30 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         <button class="btn-pill" onclick="resync('floor', 0)">Sync OFF</button>
       </div>
     </div>
+
+    <!-- Desk Lamp (Smart Touch) -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span class="icon">🏮</span> Desk Lamp (Smart Touch)</div>
+        <span class="status-badge" id="deskBadge">OFF</span>
+      </div>
+      <div class="btn-grid grid-2" style="margin-bottom: 10px;">
+        <button class="btn-on" onclick="sendCmd('desk_on', 'Desk Lamp ON (Warm White)')">
+          <span>Turn ON</span>
+          <span class="btn-subtext">☀️ Warm White (2x)</span>
+        </button>
+        <button class="btn-off" onclick="sendCmd('desk_off', 'Desk Lamp OFF')">
+          <span>Turn OFF</span>
+          <span class="btn-subtext">Closed-Loop Sense</span>
+        </button>
+      </div>
+      <div class="btn-grid" style="grid-template-columns: 1fr;">
+        <button onclick="sendCmd('desk_tap', 'Desk Lamp Cycle / Tap (1x)')">
+          <span>Cycle Color / Tap (1x)</span>
+          <span class="btn-subtext">Single Touch Pulse</span>
+        </button>
+      </div>
+    </div>
   </main>
 
   <div id="toast"></div>
@@ -463,6 +487,9 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       const floorState = data.floor !== undefined ? data.floor : data.overhead;
       updateBadge('floorBadge', floorState);
       updateBadge('overheadBadge', floorState);
+      if (data.desk !== undefined) {
+        updateBadge('deskBadge', data.desk);
+      }
 
       const hubState = document.getElementById('hubState');
       if (hubState) {

@@ -16,6 +16,7 @@ CommandQueue::CommandQueue()
   states.bedsideOn  = false;
   states.floorOn    = false;
   states.overheadOn = false;
+  states.deskOn     = false;
 }
 
 void CommandQueue::begin() {
@@ -203,6 +204,10 @@ void CommandQueue::enqueueMacroAllOn() {
   } else {
     Serial.println(F("[Macro] Bedside Lamp already assumed ON, skipping toggle."));
   }
+
+  // 5. Desk Lamp (Smart Touch via dedicated ESP8266 controller)
+  triggerDeskLamp("ON");
+  states.deskOn = true;
 }
 
 void CommandQueue::enqueueMacroAllOff() {
@@ -235,6 +240,10 @@ void CommandQueue::enqueueMacroAllOff() {
   } else {
     Serial.println(F("[Macro] Bedside Lamp already assumed OFF, skipping toggle."));
   }
+
+  // 5. Desk Lamp (Smart Touch via dedicated ESP8266 controller)
+  triggerDeskLamp("OFF");
+  states.deskOn = false;
 }
 
 void CommandQueue::sendBedsideRawDirect(uint32_t data, uint16_t repeat) {
@@ -271,19 +280,23 @@ void CommandQueue::setDeviceState(const String& device, bool state) {
   } else if (device.equalsIgnoreCase("donut")) {
     states.donutOn = state;
     Serial.printf("[Resync] Donut Lamp state manually set to %s\n", state ? "ON" : "OFF");
+  } else if (device.equalsIgnoreCase("desk") || device.equalsIgnoreCase("desk_lamp")) {
+    states.deskOn = state;
+    Serial.printf("[Sync] Desk Lamp state set to %s\n", state ? "ON" : "OFF");
   }
   notifyStateChanged();
 }
 
 String CommandQueue::getStatesJson() const {
-  char buf[180];
+  char buf[200];
   snprintf(buf, sizeof(buf),
-    "{\"poster\":%s,\"donut\":%s,\"bedside\":%s,\"floor\":%s,\"overhead\":%s,\"busy\":%s}",
+    "{\"poster\":%s,\"donut\":%s,\"bedside\":%s,\"floor\":%s,\"overhead\":%s,\"desk\":%s,\"busy\":%s}",
     states.posterOn ? "true" : "false",
     states.donutOn ? "true" : "false",
     states.bedsideOn ? "true" : "false",
     states.floorOn ? "true" : "false",
     states.overheadOn ? "true" : "false",
+    states.deskOn ? "true" : "false",
     isBusy() ? "true" : "false"
   );
   return String(buf);
@@ -372,6 +385,20 @@ bool CommandQueue::dispatchAction(const String& action) {
     handled = true;
   } else if (action.equalsIgnoreCase("all_off") || action == "o") {
     enqueueMacroAllOff();
+    handled = true;
+  }
+
+  // Desk Lamp (Forward to dedicated controller)
+  else if (action.equalsIgnoreCase("desk_on") || action.equalsIgnoreCase("desk_lamp_on") || action == "d") {
+    triggerDeskLamp("ON");
+    states.deskOn = true;
+    handled = true;
+  } else if (action.equalsIgnoreCase("desk_off") || action.equalsIgnoreCase("desk_lamp_off") || action == "x") {
+    triggerDeskLamp("OFF");
+    states.deskOn = false;
+    handled = true;
+  } else if (action.equalsIgnoreCase("desk_tap") || action.equalsIgnoreCase("desk_lamp_tap") || action == "c") {
+    triggerDeskLamp("TAP");
     handled = true;
   }
 

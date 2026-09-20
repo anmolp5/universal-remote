@@ -31,6 +31,29 @@ bool isMqttConfigured();
 void setupMqtt();
 void checkMqttConnection();
 
+void triggerDeskLamp(const char* cmd) {
+  Serial.printf("[Hub -> Desk] Forwarding command: %s\n", cmd);
+
+  // 1. MQTT Cloud Publish
+  if (mqttClient.connected()) {
+    mqttClient.publish("home/desk_lamp/command", cmd);
+  }
+
+  // 2. Direct LAN HTTP call
+  if (WiFi.status() == WL_CONNECTED) {
+    WiFiClient client;
+    client.setTimeout(200);
+    if (client.connect("192.168.10.19", 80)) {
+      String cmdLower = String(cmd);
+      cmdLower.toLowerCase();
+      client.print(String("POST /api/lamp/") + cmdLower + " HTTP/1.1\r\n" +
+                   "Host: 192.168.10.19\r\n" +
+                   "Connection: close\r\n\r\n");
+      client.stop();
+    }
+  }
+}
+
 void printMenu() {
   Serial.println(F("\n====================================================="));
   Serial.println(F("   Universal IR & RF Lighting Hub (ESP8266) Ready    "));
@@ -43,6 +66,8 @@ void printMenu() {
   Serial.println(F("  6 : Power | 7 : Brighter | 8 : Dimmer | 9 : Warmer | 0 : Cooler"));
   Serial.println(F("Floor Lamp (RF):"));
   Serial.println(F("  q : Power | w : Warmer | e : Dimmer | r : Cooler | t : Brighter"));
+  Serial.println(F("Desk Lamp (Smart Touch via ESP8266):"));
+  Serial.println(F("  d : ON (Warm White) | x : OFF | c : Cycle / Tap"));
   Serial.println(F("Master Macros:"));
   Serial.println(F("  a : ALL ON | o : ALL OFF"));
   Serial.println(F("====================================================="));
@@ -122,6 +147,24 @@ void setupWebServer() {
     server.send(200, "application/json", res);
   });
 
+  // REST API: Desk Lamp Controls
+  server.on("/api/desk_on", HTTP_ANY, []() {
+    triggerDeskLamp("ON");
+    cmdQueue.setDeviceState("desk", true);
+    server.send(200, "application/json", "{\"success\":true,\"action\":\"desk_on\"}");
+  });
+
+  server.on("/api/desk_off", HTTP_ANY, []() {
+    triggerDeskLamp("OFF");
+    cmdQueue.setDeviceState("desk", false);
+    server.send(200, "application/json", "{\"success\":true,\"action\":\"desk_off\"}");
+  });
+
+  server.on("/api/desk_tap", HTTP_ANY, []() {
+    triggerDeskLamp("TAP");
+    server.send(200, "application/json", "{\"success\":true,\"action\":\"desk_tap\"}");
+  });
+
   // REST API: Directly pulse any individual GPIO pin for hardware diagnosis
   server.on("/api/pulse_pin", HTTP_ANY, []() {
     if (!server.hasArg("pin")) {
@@ -196,6 +239,12 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   action.trim();
 
   Serial.printf("[MQTT] Inbound on [%s]: %s\n", topic, action.c_str());
+
+  if (String(topic) == "home/desk_lamp/status") {
+    bool isOn = (action.indexOf("\"ON\"") >= 0 || action.equalsIgnoreCase("ON"));
+    cmdQueue.setDeviceState("desk", isOn);
+    return;
+  }
 
   if (String(topic) == MQTT_TOPIC_COMMAND) {
     bool ok = cmdQueue.dispatchAction(action);
@@ -277,7 +326,8 @@ void checkMqttConnection() {
       mqttClient.publish(MQTT_TOPIC_AVAILABILITY, "online", true);
       mqttClient.publish(MQTT_TOPIC_STATUS, cmdQueue.getStatesJson().c_str(), true);
       mqttClient.subscribe(MQTT_TOPIC_COMMAND);
-      Serial.printf("[MQTT] Subscribed to %s\n", MQTT_TOPIC_COMMAND);
+      mqttClient.subscribe("home/desk_lamp/status");
+      Serial.printf("[MQTT] Subscribed to %s and home/desk_lamp/status\n", MQTT_TOPIC_COMMAND);
     } else {
       Serial.printf("Failed (rc=%d). Retrying in %lu s.\n", mqttClient.state(), MQTT_RECONNECT_INTERVAL / 1000);
     }

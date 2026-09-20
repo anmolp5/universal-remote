@@ -36,6 +36,7 @@ struct DeviceStates {
   bool bedsideOn;
   bool floorOn;
   bool overheadOn; // Backward-compatible alias for floorOn
+  bool deskOn;     // Desk Lamp state from closed-loop sensor
 };
 
 // Queue Engine & Hardware Interface
@@ -100,3 +101,4 @@ private:
 };
 
 extern CommandQueue cmdQueue;
+void triggerDeskLamp(const char* cmd);

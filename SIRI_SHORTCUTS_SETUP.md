@@ -46,6 +46,9 @@ Create additional shortcuts in 10 seconds each:
 | **"Turn off Donut Lamp"** | `https://lights.anmolp.workers.dev/donut_off` |
 | **"Turn on Poster Light"** | `https://lights.anmolp.workers.dev/poster_on` |
 | **"Toggle Bedside Lamp"** | `https://lights.anmolp.workers.dev/bedside_power` |
+| **"Turn on Desk Lamp"** | `https://lights.anmolp.workers.dev/desk_lamp_on` |
+| **"Turn off Desk Lamp"** | `https://lights.anmolp.workers.dev/desk_lamp_off` |
+| **"Cycle Desk Lamp"** | `https://lights.anmolp.workers.dev/desk_lamp_tap` |
 
 ---
 

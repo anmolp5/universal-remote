@@ -69,7 +69,10 @@ export default {
             '/rf_brighter',
             '/rf_dimmer',
             '/rf_warmer',
-            '/rf_cooler'
+            '/rf_cooler',
+            '/desk_lamp_on',
+            '/desk_lamp_off',
+            '/desk_lamp_tap'
           ],
           usage: 'Call any endpoint via GET or POST to trigger instantly.'
         }, null, 2),
@@ -84,10 +87,22 @@ export default {
       const port = Number(env.HIVEMQ_PORT || HIVEMQ_PORT);
       const username = env.HIVEMQ_USER || HIVEMQ_USER;
       const password = env.HIVEMQ_PASS || HIVEMQ_PASS;
-      const topic = env.MQTT_TOPIC || MQTT_TOPIC;
+      let topic = env.MQTT_TOPIC || MQTT_TOPIC;
+      let payload = action;
+
+      if (action === 'desk_lamp_on' || action === 'desk_on') {
+        topic = 'home/desk_lamp/command';
+        payload = 'ON';
+      } else if (action === 'desk_lamp_off' || action === 'desk_off') {
+        topic = 'home/desk_lamp/command';
+        payload = 'OFF';
+      } else if (action === 'desk_lamp_tap' || action === 'desk_tap') {
+        topic = 'home/desk_lamp/command';
+        payload = 'TAP';
+      }
 
       // Connect and publish via direct TLS socket
-      await publishMqttTls(host, port, username, password, topic, action);
+      await publishMqttTls(host, port, username, password, topic, payload);
 
       return new Response(
         JSON.stringify({

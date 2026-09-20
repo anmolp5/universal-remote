@@ -562,6 +562,30 @@
         <button class="btn-pill" onclick="resync('floor', 0)">Sync OFF</button>
       </div>
     </div>
+
+    <!-- Desk Lamp (Smart Touch ESP8266) -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><span>🏮</span> Desk Lamp (Smart Touch)</div>
+        <span class="status-badge" id="deskBadge">OFF</span>
+      </div>
+      <div class="btn-grid grid-2" style="margin-bottom: 8px;">
+        <button class="btn-on" onclick="sendDeskCmd('ON', 'Desk Lamp ON (Warm White)')">
+          <span>Turn ON</span>
+          <span class="btn-subtext">☀️ Warm White (2x)</span>
+        </button>
+        <button class="btn-off" onclick="sendDeskCmd('OFF', 'Desk Lamp OFF')">
+          <span>Turn OFF</span>
+          <span class="btn-subtext">Closed-Loop Sense</span>
+        </button>
+      </div>
+      <div class="btn-grid" style="grid-template-columns: 1fr;">
+        <button onclick="sendDeskCmd('TAP', 'Desk Lamp Cycle / Tap (1x)')">
+          <span>Cycle Color / Tap (1x)</span>
+          <span class="btn-subtext">Single Touch Pulse</span>
+        </button>
+      </div>
+    </div>
   </main>
 
   <!-- Settings Modal -->
@@ -721,8 +745,10 @@
 
           const statusTopic = `${cfg.prefix}/status`;
           const availTopic = `${cfg.prefix}/availability`;
+          const deskStatusTopic = 'home/desk_lamp/status';
+          const deskAvailTopic = 'home/desk_lamp/availability';
 
-          client.subscribe([statusTopic, availTopic], (err) => {
+          client.subscribe([statusTopic, availTopic, deskStatusTopic, deskAvailTopic], (err) => {
             if (!err) console.log('Subscribed to status topics');
           });
         });
@@ -731,7 +757,14 @@
           const str = payload.toString();
           console.log('[MQTT RX]', topic, str);
 
-          if (topic.endsWith('/status')) {
+          if (topic === 'home/desk_lamp/status') {
+            try {
+              const data = JSON.parse(str);
+              updateBadge('deskBadge', data.state === 'ON');
+            } catch(e) {
+              updateBadge('deskBadge', str.toUpperCase() === 'ON');
+            }
+          } else if (topic.endsWith('/status')) {
             try {
               const data = JSON.parse(str);
               updateBadge('posterBadge', data.poster);
@@ -740,6 +773,9 @@
               const floorVal = data.floor !== undefined ? data.floor : data.overhead;
               updateBadge('floorBadge', floorVal);
               updateBadge('overheadBadge', floorVal);
+              if (data.desk !== undefined) {
+                updateBadge('deskBadge', data.desk);
+              }
 
               const hubState = document.getElementById('hubState');
               if (hubState) {
@@ -749,7 +785,7 @@
             } catch(e){}
           } else if (topic.endsWith('/availability')) {
             if (str === 'offline') {
-              showToast('ESP8266 Hub is currently offline');
+              showToast('Device went offline');
             }
           }
         });
@@ -764,7 +800,7 @@
         });
 
         client.on('reconnect', () => {
-          setConnectionStatus('connecting', 'Reconnecting...');
+          setConnectionStatus('reconnecting', 'Reconnecting...');
         });
 
       } catch (err) {
@@ -785,6 +821,18 @@
 
       const cmdTopic = `${cfg.prefix}/command`;
       client.publish(cmdTopic, action, { qos: 0 });
+    }
+
+    function sendDeskCmd(action, label) {
+      haptic();
+      showToast(label || action);
+
+      if (client && client.connected) {
+        client.publish('home/desk_lamp/command', action, { qos: 0 });
+      } else {
+        fetch('http://desk-lamp.local/api/lamp/' + action.toLowerCase(), { mode: 'no-cors' })
+          .catch(() => {});
+      }
     }
 
     function resync(device, state) {

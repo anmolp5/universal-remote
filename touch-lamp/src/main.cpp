@@ -84,7 +84,20 @@ void publishStatus() {
 // =============================================================================
 // Actuation Functions
 // =============================================================================
+static unsigned long lastActionTime = 0;
+const unsigned long ACTION_DEBOUNCE_MS = 600;
+
 bool turnOn() {
+  if (pQueue.state != PULSE_IDLE) {
+    Serial.println(F("[CTRL] Busy: pulse queue active, ignoring duplicate trigger."));
+    return false;
+  }
+  if (millis() - lastActionTime < ACTION_DEBOUNCE_MS) {
+    Serial.println(F("[CTRL] Debounce: duplicate command ignored."));
+    return false;
+  }
+  lastActionTime = millis();
+
   if (isLampOn()) {
     Serial.println(F("[CTRL] Turn ON requested, but lamp is already ON."));
     publishStatus();
@@ -101,6 +114,16 @@ bool turnOn() {
 }
 
 bool turnOff() {
+  if (pQueue.state != PULSE_IDLE) {
+    Serial.println(F("[CTRL] Busy: pulse queue active, ignoring duplicate trigger."));
+    return false;
+  }
+  if (millis() - lastActionTime < ACTION_DEBOUNCE_MS) {
+    Serial.println(F("[CTRL] Debounce: duplicate command ignored."));
+    return false;
+  }
+  lastActionTime = millis();
+
   if (!isLampOn()) {
     Serial.println(F("[CTRL] Turn OFF requested, but lamp is already OFF."));
     publishStatus();
@@ -117,6 +140,16 @@ bool turnOff() {
 }
 
 bool singleTap() {
+  if (pQueue.state != PULSE_IDLE) {
+    Serial.println(F("[CTRL] Busy: pulse queue active, ignoring duplicate trigger."));
+    return false;
+  }
+  if (millis() - lastActionTime < ACTION_DEBOUNCE_MS) {
+    Serial.println(F("[CTRL] Debounce: duplicate command ignored."));
+    return false;
+  }
+  lastActionTime = millis();
+
   Serial.println(F("[CTRL] Single Tap (1x) pulse..."));
   pQueue.remainingTaps = 1;
   pQueue.verifyOffWhenDone = false;
@@ -164,8 +197,8 @@ void updatePulseQueue() {
       break;
 
     case PULSE_VERIFY_OFF:
-      // Allow 180ms settling time for lamp driver & LED
-      if (now - pQueue.stateStartTime >= 180) {
+      // Allow 350ms settling time for lamp driver & LED
+      if (now - pQueue.stateStartTime >= 350) {
         if (!isLampOn()) {
           Serial.println(F("[OFF] Closed-loop verified: Standby LED lit, Lamp is OFF."));
           pQueue.state = PULSE_IDLE;

@@ -18,8 +18,8 @@ const uint8_t PIN_STATE_SENSE = 14; // D5 / GPIO14
 // =============================================================================
 // Timing Constants (Milliseconds)
 // =============================================================================
-const unsigned long PULSE_TAP_MS      = 120; // Snappy touch pulse duration
-const unsigned long INTER_TAP_GAP_MS  = 80;  // Ultra-fast gap between consecutive taps
+const unsigned long PULSE_TAP_MS      = 120; // Crisp touch pulse duration
+const unsigned long INTER_TAP_GAP_MS  = 130; // Reliable gap ensuring touch IC detects release
 const unsigned long SENSE_DEBOUNCE_MS = 50;  // Debounce filter for physical touch sensing
 
 // =============================================================================

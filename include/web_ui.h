@@ -386,32 +386,37 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     #bedsideCard.expanded-morph .bedside-layout {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 8px;
     }
 
     #bedsideCard.expanded-morph .btn-bedside-power {
       width: 100%;
-      min-height: 36px;
-      max-height: 36px;
-      height: 36px;
+      min-height: 38px;
+      max-height: 38px;
+      height: 38px;
       aspect-ratio: unset;
-      border-radius: 8px;
-      font-size: 0.82rem;
+      border-radius: 10px;
+      font-size: 0.88rem;
     }
 
     #bedsideCard.expanded-morph .bedside-quad {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      grid-template-rows: auto;
-      gap: 5px;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 8px;
       width: 100%;
+      max-width: 144px;
+      margin: 0 auto;
     }
 
     #bedsideCard.expanded-morph .bedside-quad .btn-quad {
       aspect-ratio: 1 / 1;
       width: 100%;
-      max-height: 36px;
-      font-size: 0.74rem;
+      max-width: 68px;
+      max-height: 68px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      border-radius: 12px;
     }
 
     /* Inline Drawer Accordion */

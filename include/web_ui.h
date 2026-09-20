@@ -113,7 +113,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       display: flex;
       flex-direction: column;
       justify-content: space-between;
-      min-height: 155px;
+      min-height: 195px;
     }
 
     .card:hover {
@@ -124,11 +124,11 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 12px;
+      margin-bottom: 14px;
     }
 
     .card-title {
-      font-size: 0.92rem;
+      font-size: 0.95rem;
       font-weight: 700;
       letter-spacing: -0.01em;
       color: #ffffff;
@@ -145,7 +145,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      padding: 2px 7px;
+      padding: 3px 8px;
       border-radius: 10px;
       background: rgba(255, 255, 255, 0.05);
       color: var(--text-muted);
@@ -165,12 +165,12 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     }
 
     .btn-expand {
-      background: transparent;
-      border: none;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       color: var(--text-muted);
-      width: 22px;
-      height: 22px;
-      border-radius: 6px;
+      width: 26px;
+      height: 26px;
+      border-radius: 7px;
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -181,7 +181,8 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
     .btn-expand:hover {
       color: var(--text-main);
-      background: rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--accent-blue);
     }
 
     .btn-expand svg {
@@ -197,25 +198,32 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       display: flex;
       flex-direction: column;
       flex: 1;
-      justify-content: flex-end;
+      height: 100%;
     }
 
     .btn-grid {
       display: grid;
       gap: 8px;
+      flex: 1;
+      height: 100%;
     }
 
-    .grid-2 { grid-template-columns: repeat(2, 1fr); }
-    .grid-4 { grid-template-columns: repeat(4, 1fr); }
+    .grid-2 {
+      grid-template-columns: repeat(2, 1fr);
+      height: 100%;
+    }
+    .grid-4 {
+      grid-template-columns: repeat(4, 1fr);
+    }
 
     /* Buttons */
     button {
       background: var(--btn-bg);
       border: 1px solid var(--card-border);
-      border-radius: 10px;
+      border-radius: 12px;
       color: var(--text-main);
       padding: 12px 6px;
-      font-size: 0.84rem;
+      font-size: 0.88rem;
       font-weight: 600;
       cursor: pointer;
       display: flex;
@@ -234,6 +242,14 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     button:active {
       transform: scale(0.97);
       filter: brightness(1.2);
+    }
+
+    .grid-2 > button {
+      height: 100%;
+      min-height: 116px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
     }
 
     .btn-on {
@@ -264,32 +280,37 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     .split-layout {
       display: grid;
       grid-template-columns: 1fr 1.35fr;
-      gap: 6px;
+      gap: 8px;
       flex: 1;
+      height: 100%;
     }
 
     .btn-power-tall {
       height: 100%;
-      min-height: 84px;
-      font-size: 0.88rem;
+      min-height: 116px;
+      font-size: 1rem;
       font-weight: 700;
       background: rgba(56, 189, 248, 0.12);
       border-color: rgba(56, 189, 248, 0.3);
       color: #7dd3fc;
+      border-radius: 12px;
     }
 
     .quad-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       grid-template-rows: 1fr 1fr;
-      gap: 5px;
+      gap: 6px;
       height: 100%;
+      min-height: 116px;
     }
 
     .btn-quad {
-      padding: 6px 2px;
-      font-size: 0.72rem;
+      padding: 0;
+      height: 100%;
+      font-size: 0.82rem;
       font-weight: 600;
+      border-radius: 10px;
     }
 
     /* Inline Drawer Accordion */
@@ -318,7 +339,19 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
     .btn-wide {
       width: 100%;
-      padding: 10px;
+      min-height: 46px;
+      padding: 12px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      border-radius: 10px;
+    }
+
+    .grid-4 button {
+      min-height: 44px;
+      padding: 10px 4px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      border-radius: 8px;
     }
 
     .resync-bar {
@@ -326,7 +359,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       align-items: center;
       justify-content: flex-end;
       gap: 6px;
-      padding-top: 2px;
+      padding-top: 4px;
     }
 
     .resync-label {
@@ -390,7 +423,23 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
   </header>
 
   <main>
-    <!-- Card 1: Poster Light -->
+    <!-- Card 1: All Lights -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">All Lights</div>
+        <div class="header-right">
+          <span class="status-badge" id="hubState">Ready</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="btn-grid grid-2">
+          <button class="btn-master-on" onclick="sendCmd('all_on', 'ALL ON')">ALL ON</button>
+          <button class="btn-master-off" onclick="sendCmd('all_off', 'ALL OFF')">ALL OFF</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2: Poster Light -->
     <div class="card">
       <div class="card-header">
         <div class="card-title">Poster</div>
@@ -414,62 +463,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       </div>
     </div>
 
-    <!-- Card 2: Donut Lamp -->
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">Donut</div>
-        <div class="header-right">
-          <span class="status-badge" id="donutBadge">OFF</span>
-        </div>
-      </div>
-      <div class="card-body">
-        <div class="btn-grid grid-2">
-          <button class="btn-on" onclick="sendCmd('donut_on', 'Donut ON')">ON</button>
-          <button class="btn-off" onclick="sendCmd('donut_off', 'Donut OFF')">OFF</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Card 3: Bedside Lamp -->
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title">Bedside</div>
-        <div class="header-right">
-          <span class="status-badge" id="bedsideBadge">OFF</span>
-          <button class="btn-expand" onclick="toggleDrawer('bedsideDrawer', this)" aria-label="Expand">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-          </button>
-        </div>
-      </div>
-      <div class="card-body">
-        <div class="split-layout">
-          <button class="btn-power-tall" onclick="sendCmd('bedside_power', 'Bedside Power')">Power</button>
-          <div class="quad-grid">
-            <button class="btn-quad" onclick="sendCmd('bedside_brighter', 'Bedside Brighter')" title="Brighter">▲</button>
-            <button class="btn-quad" onclick="sendCmd('bedside_dimmer', 'Bedside Dimmer')" title="Dimmer">▼</button>
-            <button class="btn-quad" onclick="sendCmd('bedside_warmer', 'Bedside Warmer')">Warm</button>
-            <button class="btn-quad" onclick="sendCmd('bedside_cooler', 'Bedside Cooler')">Cool</button>
-          </div>
-        </div>
-      </div>
-      <div class="drawer" id="bedsideDrawer">
-        <div class="drawer-inner">
-          <div class="btn-grid grid-4">
-            <button onclick="sendCmd('bedside_brighter', 'Bedside Brighter')">Brighter</button>
-            <button onclick="sendCmd('bedside_dimmer', 'Bedside Dimmer')">Dimmer</button>
-            <button onclick="sendCmd('bedside_warmer', 'Bedside Warmer')">Warmer</button>
-            <button onclick="sendCmd('bedside_cooler', 'Bedside Cooler')">Cooler</button>
-          </div>
-          <div class="resync-bar">
-            <span class="resync-label">Sync:</span>
-            <button class="btn-pill" onclick="resync('bedside', 1)">ON</button>
-            <button class="btn-pill" onclick="resync('bedside', 0)">OFF</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Card 4: Floor Lamp -->
+    <!-- Card 3: Floor Lamp -->
     <div class="card">
       <div class="card-header">
         <div class="card-title">Floor</div>
@@ -508,7 +502,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       </div>
     </div>
 
-    <!-- Card 5: Desk Lamp -->
+    <!-- Card 4: Desk Lamp -->
     <div class="card">
       <div class="card-header">
         <div class="card-title">Desk</div>
@@ -532,18 +526,57 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       </div>
     </div>
 
-    <!-- Card 6: All Lights -->
+    <!-- Card 5: Bedside Lamp -->
     <div class="card">
       <div class="card-header">
-        <div class="card-title">All Lights</div>
+        <div class="card-title">Bedside</div>
         <div class="header-right">
-          <span class="status-badge" id="hubState">Ready</span>
+          <span class="status-badge" id="bedsideBadge">OFF</span>
+          <button class="btn-expand" onclick="toggleDrawer('bedsideDrawer', this)" aria-label="Expand">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="split-layout">
+          <button class="btn-power-tall" onclick="sendCmd('bedside_power', 'Bedside Power')">Power</button>
+          <div class="quad-grid">
+            <button class="btn-quad" onclick="sendCmd('bedside_brighter', 'Bedside Brighter')" title="Brighter">▲</button>
+            <button class="btn-quad" onclick="sendCmd('bedside_dimmer', 'Bedside Dimmer')" title="Dimmer">▼</button>
+            <button class="btn-quad" onclick="sendCmd('bedside_warmer', 'Bedside Warmer')">Warm</button>
+            <button class="btn-quad" onclick="sendCmd('bedside_cooler', 'Bedside Cooler')">Cool</button>
+          </div>
+        </div>
+      </div>
+      <div class="drawer" id="bedsideDrawer">
+        <div class="drawer-inner">
+          <div class="btn-grid grid-4">
+            <button onclick="sendCmd('bedside_brighter', 'Bedside Brighter')">Brighter</button>
+            <button onclick="sendCmd('bedside_dimmer', 'Bedside Dimmer')">Dimmer</button>
+            <button onclick="sendCmd('bedside_warmer', 'Bedside Warmer')">Warmer</button>
+            <button onclick="sendCmd('bedside_cooler', 'Bedside Cooler')">Cooler</button>
+          </div>
+          <div class="resync-bar">
+            <span class="resync-label">Sync:</span>
+            <button class="btn-pill" onclick="resync('bedside', 1)">ON</button>
+            <button class="btn-pill" onclick="resync('bedside', 0)">OFF</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 6: Donut Lamp -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">Donut</div>
+        <div class="header-right">
+          <span class="status-badge" id="donutBadge">OFF</span>
         </div>
       </div>
       <div class="card-body">
         <div class="btn-grid grid-2">
-          <button class="btn-master-on" onclick="sendCmd('all_on', 'ALL ON')">ALL ON</button>
-          <button class="btn-master-off" onclick="sendCmd('all_off', 'ALL OFF')">ALL OFF</button>
+          <button class="btn-on" onclick="sendCmd('donut_on', 'Donut ON')">ON</button>
+          <button class="btn-off" onclick="sendCmd('donut_off', 'Donut OFF')">OFF</button>
         </div>
       </div>
     </div>

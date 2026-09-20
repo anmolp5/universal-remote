@@ -84,7 +84,7 @@ void CommandQueue::executeStep(const QueueStep& step) {
 
   switch (step.type) {
     case STEP_IR_NEC:
-      irsend.sendNEC(irsend.encodeNEC(step.necAddress, step.necCommand));
+      irsend.sendNEC(irsend.encodeNEC(step.necAddress, step.necCommand), 32, step.repeat);
       break;
 
     case STEP_IR_BEDSIDE:
@@ -145,19 +145,27 @@ void CommandQueue::enqueueRFPulse(uint8_t pin, const char* label) {
 }
 
 void CommandQueue::enqueueMacroAllOn() {
-  Serial.println(F("[Macro] Queuing Smart ALL ON..."));
+  Serial.println(F("[Macro] Queuing Smart ALL ON (Fast Simultaneous)..."));
 
-  // 1. Poster Light ON
+  // 1. RF Overhead Lamp - Trigger FIRST (hardware runs in background during IR steps)
+  if (!states.overheadOn) {
+    enqueueRFPulse(RF_PIN_POWER, "Overhead Lamp (Smart Turn ON)");
+    states.overheadOn = true;
+  } else {
+    Serial.println(F("[Macro] Overhead Lamp already assumed ON, skipping toggle."));
+  }
+
+  // 2. Poster Light ON (NEC 0x7386 / 0x03)
   QueueStep posterStep = { STEP_IR_NEC, 0, POSTER_ADDR, POSTER_CMD_ON, 0, nullptr, 0, 0, MACRO_STEP_DELAY_MS, "Poster Light ON" };
   enqueue(posterStep);
   states.posterOn = true;
 
-  // 2. Donut Lamp ON
-  QueueStep donutStep  = { STEP_IR_NEC, 0, DONUT_ADDR,  DONUT_CMD_ON,  0, nullptr, 0, 0, MACRO_STEP_DELAY_MS, "Donut Lamp ON" };
+  // 3. Donut Lamp ON (NEC 0x0000 / 0x40 with repeat=1 for guaranteed wake-up)
+  QueueStep donutStep  = { STEP_IR_NEC, 0, DONUT_ADDR,  DONUT_CMD_ON,  0, nullptr, 0, 1, MACRO_STEP_DELAY_MS, "Donut Lamp ON" };
   enqueue(donutStep);
   states.donutOn = true;
 
-  // 3. Bedside Lamp (Only toggle if currently OFF)
+  // 4. Bedside Lamp (Pulse distance protocol: only toggle if currently OFF)
   if (!states.bedsideOn) {
     QueueStep bedsideStep = { STEP_IR_BEDSIDE, 0, 0, 0, BEDSIDE_CMD_POWER, nullptr, 0, 1, MACRO_STEP_DELAY_MS, "Bedside Lamp (Smart Turn ON)" };
     enqueue(bedsideStep);
@@ -165,44 +173,36 @@ void CommandQueue::enqueueMacroAllOn() {
   } else {
     Serial.println(F("[Macro] Bedside Lamp already assumed ON, skipping toggle."));
   }
-
-  // 4. RF Overhead Lamp (Only toggle if currently OFF)
-  if (!states.overheadOn) {
-    enqueueRFPulse(RF_PIN_POWER, "Overhead Lamp (Smart Turn ON)");
-    states.overheadOn = true;
-  } else {
-    Serial.println(F("[Macro] Overhead Lamp already assumed ON, skipping toggle."));
-  }
 }
 
 void CommandQueue::enqueueMacroAllOff() {
-  Serial.println(F("[Macro] Queuing Smart ALL OFF..."));
+  Serial.println(F("[Macro] Queuing Smart ALL OFF (Fast Simultaneous)..."));
 
-  // 1. Poster Light OFF
+  // 1. RF Overhead Lamp - Trigger FIRST
+  if (states.overheadOn) {
+    enqueueRFPulse(RF_PIN_POWER, "Overhead Lamp (Smart Turn OFF)");
+    states.overheadOn = false;
+  } else {
+    Serial.println(F("[Macro] Overhead Lamp already assumed OFF, skipping toggle."));
+  }
+
+  // 2. Poster Light OFF (NEC 0x7386 / 0x98)
   QueueStep posterStep = { STEP_IR_NEC, 0, POSTER_ADDR, POSTER_CMD_OFF, 0, nullptr, 0, 0, MACRO_STEP_DELAY_MS, "Poster Light OFF" };
   enqueue(posterStep);
   states.posterOn = false;
 
-  // 2. Donut Lamp OFF
-  QueueStep donutStep  = { STEP_IR_NEC, 0, DONUT_ADDR,  DONUT_CMD_OFF,  0, nullptr, 0, 0, MACRO_STEP_DELAY_MS, "Donut Lamp OFF" };
+  // 3. Donut Lamp OFF (NEC 0x0000 / 0x41 with repeat=1 for guaranteed sleep)
+  QueueStep donutStep  = { STEP_IR_NEC, 0, DONUT_ADDR,  DONUT_CMD_OFF,  0, nullptr, 0, 1, MACRO_STEP_DELAY_MS, "Donut Lamp OFF" };
   enqueue(donutStep);
   states.donutOn = false;
 
-  // 3. Bedside Lamp (Only toggle if currently ON)
+  // 4. Bedside Lamp (Only toggle if currently ON)
   if (states.bedsideOn) {
     QueueStep bedsideStep = { STEP_IR_BEDSIDE, 0, 0, 0, BEDSIDE_CMD_POWER, nullptr, 0, 1, MACRO_STEP_DELAY_MS, "Bedside Lamp (Smart Turn OFF)" };
     enqueue(bedsideStep);
     states.bedsideOn = false;
   } else {
     Serial.println(F("[Macro] Bedside Lamp already assumed OFF, skipping toggle."));
-  }
-
-  // 4. RF Overhead Lamp (Only toggle if currently ON)
-  if (states.overheadOn) {
-    enqueueRFPulse(RF_PIN_POWER, "Overhead Lamp (Smart Turn OFF)");
-    states.overheadOn = false;
-  } else {
-    Serial.println(F("[Macro] Overhead Lamp already assumed OFF, skipping toggle."));
   }
 }
 

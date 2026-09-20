@@ -15,11 +15,10 @@ const uint8_t RF_PIN_COOLER   = 15; // D8 / GPIO15 (Moved from D0 to disable onb
 const uint8_t RF_PIN_BRIGHTER = 4;  // D2 / GPIO4
 
 // ==========================================
-// Timing Constants (Milliseconds)
-// ==========================================
-const unsigned long RF_PRESS_DURATION_MS = 150;
-const unsigned long RF_COOLDOWN_MS       = 100;
-const unsigned long MACRO_STEP_DELAY_MS  = 60;
+// Timing Constants (Milliseconds) - Tuned for Instant Multi-Device Response
+const unsigned long RF_PRESS_DURATION_MS = 100;
+const unsigned long RF_COOLDOWN_MS       = 30;
+const unsigned long MACRO_STEP_DELAY_MS  = 12;
 
 // ==========================================
 // Network & Device Identity

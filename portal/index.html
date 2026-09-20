@@ -792,9 +792,31 @@
       sendCmd(`sync_${device}_${stateStr}`, `Sync ${device} ${stateStr.toUpperCase()}`);
     }
 
+    // Check for ?action= URL parameter for Apple Shortcuts / Siri triggers
+    function checkUrlAction() {
+      const params = new URLSearchParams(window.location.search);
+      const action = params.get('action');
+      if (action) {
+        console.log('[Auto Action] Triggering from URL parameter:', action);
+        showToast(`Auto Action: ${action}`);
+        // Dispatch once connected (or wait briefly if connecting)
+        const tryDispatch = () => {
+          if (client && client.connected) {
+            sendCmd(action, `Siri/Shortcut: ${action}`);
+            // Clean URL query param so refreshing doesn't re-trigger
+            window.history.replaceState({}, document.title, window.location.pathname);
+          } else {
+            setTimeout(tryDispatch, 200);
+          }
+        };
+        tryDispatch();
+      }
+    }
+
     // Auto-connect on page load
     window.addEventListener('DOMContentLoaded', () => {
       connectMqtt();
+      checkUrlAction();
     });
   </script>
 </body>

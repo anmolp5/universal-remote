@@ -3,21 +3,24 @@
  *
  * Lightweight serverless REST API that translates incoming HTTP GET/POST calls
  * (from Apple Shortcuts, Siri, Widgets, Home Assistant, etc.) into secure
- * MQTT messages published to HiveMQ Cloud.
+ * MQTT messages published to HiveMQ Cloud via direct TLS sockets.
  *
  * Example endpoints:
  *   GET/POST https://<your-worker>.workers.dev/all_on
  *   GET/POST https://<your-worker>.workers.dev/all_off
- *   GET/POST https://<your-worker>.workers.dev/bedside_power
  *   GET/POST https://<your-worker>.workers.dev/donut_on
+ *   GET/POST https://<your-worker>.workers.dev/donut_off
  *   GET/POST https://<your-worker>.workers.dev/poster_on
+ *   GET/POST https://<your-worker>.workers.dev/bedside_power
  *   GET/POST https://<your-worker>.workers.dev/rf_power
  *   GET/POST https://<your-worker>.workers.dev/cmd?action=all_on
  */
 
+import { connect } from 'cloudflare:sockets';
+
 // Default Configuration (Can also be set as Cloudflare Environment Secrets)
 const HIVEMQ_HOST = '0a91464cd01b488489e6e5603cba4112.s1.eu.hivemq.cloud';
-const HIVEMQ_WSS_PORT = 8884;
+const HIVEMQ_PORT = 8883;
 const HIVEMQ_USER = 'anmolp';
 const HIVEMQ_PASS = 'aplights';
 const MQTT_TOPIC = 'home/universal_remote/command';
@@ -72,14 +75,14 @@ export default {
     }
 
     try {
-      // Connect to HiveMQ Cloud over secure WebSockets
-      const brokerUrl = `wss://${env.HIVEMQ_HOST || HIVEMQ_HOST}:${env.HIVEMQ_WSS_PORT || HIVEMQ_WSS_PORT}/mqtt`;
+      const host = env.HIVEMQ_HOST || HIVEMQ_HOST;
+      const port = Number(env.HIVEMQ_PORT || HIVEMQ_PORT);
       const username = env.HIVEMQ_USER || HIVEMQ_USER;
       const password = env.HIVEMQ_PASS || HIVEMQ_PASS;
       const topic = env.MQTT_TOPIC || MQTT_TOPIC;
 
-      // Send MQTT packet via standard WebSocket handshake
-      const res = await publishMqttOverWs(brokerUrl, username, password, topic, action);
+      // Connect and publish via direct TLS socket
+      await publishMqttTls(host, port, username, password, topic, action);
 
       return new Response(
         JSON.stringify({
@@ -109,56 +112,41 @@ export default {
 };
 
 /**
- * Minimalist binary MQTT 3.1.1 CONNECT and PUBLISH generator over WebSocket
+ * Connect directly to HiveMQ Cloud via secure TLS socket on port 8883
  */
-async function publishMqttOverWs(brokerUrl, username, password, topic, payload) {
-  return new Promise((resolve, reject) => {
-    const ws = new WebSocket(brokerUrl, ['mqtt']);
-    const timeout = setTimeout(() => {
-      try { ws.close(); } catch(e){}
-      reject(new Error('WebSocket connection timed out to HiveMQ Cloud'));
-    }, 4500);
+async function publishMqttTls(host, port, username, password, topic, payload) {
+  const socket = connect({ hostname: host, port: port }, { secureTransport: 'on' });
+  const writer = socket.writable.getWriter();
+  const reader = socket.readable.getReader();
 
-    ws.addEventListener('open', () => {
-      try {
-        const connectPacket = createConnectPacket(
-          'cf-worker-' + Math.random().toString(16).substring(2, 8),
-          username,
-          password
-        );
-        ws.send(connectPacket);
-      } catch (err) {
-        clearTimeout(timeout);
-        reject(err);
-      }
-    });
+  try {
+    // 1. Send MQTT CONNECT
+    const clientId = 'siri-' + Math.random().toString(16).substring(2, 8);
+    const connPacket = createConnectPacket(clientId, username, password);
+    await writer.write(connPacket);
 
-    ws.addEventListener('message', (event) => {
-      const data = new Uint8Array(event.data);
-      // Byte 0x20 is CONNACK in MQTT
-      if (data.length >= 2 && data[0] === 0x20) {
-        if (data[3] === 0x00) {
-          // Connected successfully! Now publish payload
-          const pubPacket = createPublishPacket(topic, payload);
-          ws.send(pubPacket);
-          clearTimeout(timeout);
-          // Allow small flush window before closing
-          setTimeout(() => {
-            try { ws.close(); } catch(e){}
-            resolve(true);
-          }, 60);
-        } else {
-          clearTimeout(timeout);
-          reject(new Error(`CONNACK error code ${data[3]}`));
-        }
-      }
-    });
+    // 2. Read MQTT CONNACK
+    const { value: connack, done } = await reader.read();
+    if (done || !connack || connack.length < 4) {
+      throw new Error('Broker closed connection before sending CONNACK');
+    }
+    if (connack[0] !== 0x20 || connack[3] !== 0x00) {
+      throw new Error(`MQTT Connection refused (code: ${connack[3]})`);
+    }
 
-    ws.addEventListener('error', (err) => {
-      clearTimeout(timeout);
-      reject(new Error('WebSocket error communicating with HiveMQ Cloud'));
-    });
-  });
+    // 3. Send MQTT PUBLISH
+    const pubPacket = createPublishPacket(topic, payload);
+    await writer.write(pubPacket);
+
+    // 4. Close gracefully
+    try { await writer.close(); } catch(e){}
+    try { await reader.cancel(); } catch(e){}
+    try { await socket.close(); } catch(e){}
+    return true;
+  } catch (err) {
+    try { await socket.close(); } catch(e){}
+    throw err;
+  }
 }
 
 function encodeString(str) {
@@ -182,7 +170,7 @@ function createConnectPacket(clientId, user, pass) {
 
   const varHeader = [
     ...protoName,
-    0x04, // Level (3.1.1)
+    0x04, // MQTT 3.1.1
     flags,
     0x00, 0x3c // Keepalive 60s
   ];

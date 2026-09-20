@@ -16,9 +16,9 @@ const uint8_t RF_PIN_BRIGHTER = 4;  // D2 / GPIO4
 
 // ==========================================
 // Timing Constants (Milliseconds) - Tuned for Instant Multi-Device Response
-const unsigned long RF_PRESS_DURATION_MS = 100;
-const unsigned long RF_COOLDOWN_MS       = 30;
-const unsigned long MACRO_STEP_DELAY_MS  = 35;
+const unsigned long RF_PRESS_DURATION_MS = 90;
+const unsigned long RF_COOLDOWN_MS       = 20;
+const unsigned long MACRO_STEP_DELAY_MS  = 10;
 
 // ==========================================
 // Network & Device Identity

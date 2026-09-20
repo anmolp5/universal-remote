@@ -8,7 +8,9 @@ CommandQueue cmdQueue;
 
 CommandQueue::CommandQueue()
   : queueHead(0), queueTail(0), queueCount(0),
-    lastStepTime(0), stepDuration(0), stateChangeCb(nullptr) {
+    lastStepTime(0), stepDuration(0),
+    rfActivePin(0), rfPulseEndTime(0),
+    stateChangeCb(nullptr) {
   states.posterOn   = false;
   states.donutOn    = false;
   states.bedsideOn  = false;
@@ -58,7 +60,7 @@ QueueStep CommandQueue::dequeue() {
 }
 
 bool CommandQueue::isBusy() const {
-  return queueCount > 0 || (millis() - lastStepTime < stepDuration);
+  return queueCount > 0 || (millis() - lastStepTime < stepDuration) || (rfActivePin != 0);
 }
 
 void CommandQueue::sendBedsideRaw(uint32_t data, uint16_t repeat) {
@@ -126,6 +128,12 @@ void CommandQueue::executeStep(const QueueStep& step) {
 void CommandQueue::update() {
   unsigned long now = millis();
 
+  // Background non-blocking release of active RF pin
+  if (rfActivePin != 0 && now >= rfPulseEndTime) {
+    digitalWrite(rfActivePin, LOW);
+    rfActivePin = 0;
+  }
+
   // If currently waiting for an RF hold or cooldown delay, yield execution
   if (now - lastStepTime < stepDuration) {
     return;
@@ -142,6 +150,20 @@ void CommandQueue::update() {
   stepDuration = step.durationMs;
 }
 
+void CommandQueue::triggerRFAsync(uint8_t pin, const char* label) {
+  if (label) {
+    Serial.print(F("[RF Async Action] "));
+    Serial.println(label);
+  }
+  // If an RF pulse was already active on another pin, bring it LOW first
+  if (rfActivePin != 0 && rfActivePin != pin) {
+    digitalWrite(rfActivePin, LOW);
+  }
+  digitalWrite(pin, HIGH);
+  rfActivePin = pin;
+  rfPulseEndTime = millis() + RF_PRESS_DURATION_MS;
+}
+
 void CommandQueue::enqueueRFPulse(uint8_t pin, const char* label) {
   QueueStep highStep = { STEP_RF_HIGH, pin, 0, 0, 0, nullptr, 0, 0, RF_PRESS_DURATION_MS, label };
   enqueue(highStep);
@@ -151,19 +173,27 @@ void CommandQueue::enqueueRFPulse(uint8_t pin, const char* label) {
 }
 
 void CommandQueue::enqueueMacroAllOn() {
-  Serial.println(F("[Macro] Queuing Smart ALL ON (Fast Simultaneous)..."));
+  Serial.println(F("[Macro] Queuing Smart ALL ON (Instant Concurrent)..."));
 
-  // 1. Donut Lamp ON (Trigger FIRST: NEC 0x0000 / 0x40)
+  // 1. RF Overhead Lamp - Trigger IMMEDIATELY at t=0 concurrently with IR
+  if (!states.overheadOn) {
+    triggerRFAsync(RF_PIN_POWER, "Overhead Lamp (Smart Turn ON - Concurrent)");
+    states.overheadOn = true;
+  } else {
+    Serial.println(F("[Macro] Overhead Lamp already assumed ON, skipping toggle."));
+  }
+
+  // 2. Donut Lamp ON (Trigger FIRST in IR queue: NEC 0x0000 / 0x40)
   QueueStep donutStep  = { STEP_IR_NEC, 0, DONUT_ADDR,  DONUT_CMD_ON,  0, nullptr, 0, 0, MACRO_STEP_DELAY_MS, "Donut Lamp ON" };
   enqueue(donutStep);
   states.donutOn = true;
 
-  // 2. Poster Light ON (NEC 0x7386 / 0x03)
+  // 3. Poster Light ON (NEC 0x7386 / 0x03)
   QueueStep posterStep = { STEP_IR_NEC, 0, POSTER_ADDR, POSTER_CMD_ON, 0, nullptr, 0, 0, MACRO_STEP_DELAY_MS, "Poster Light ON" };
   enqueue(posterStep);
   states.posterOn = true;
 
-  // 3. Bedside Lamp (Pulse distance protocol: only toggle if currently OFF)
+  // 4. Bedside Lamp (Pulse distance protocol: only toggle if currently OFF)
   if (!states.bedsideOn) {
     QueueStep bedsideStep = { STEP_IR_BEDSIDE, 0, 0, 0, BEDSIDE_CMD_POWER, nullptr, 0, 1, MACRO_STEP_DELAY_MS, "Bedside Lamp (Smart Turn ON)" };
     enqueue(bedsideStep);
@@ -171,44 +201,36 @@ void CommandQueue::enqueueMacroAllOn() {
   } else {
     Serial.println(F("[Macro] Bedside Lamp already assumed ON, skipping toggle."));
   }
-
-  // 4. RF Overhead Lamp (Only toggle if currently OFF)
-  if (!states.overheadOn) {
-    enqueueRFPulse(RF_PIN_POWER, "Overhead Lamp (Smart Turn ON)");
-    states.overheadOn = true;
-  } else {
-    Serial.println(F("[Macro] Overhead Lamp already assumed ON, skipping toggle."));
-  }
 }
 
 void CommandQueue::enqueueMacroAllOff() {
-  Serial.println(F("[Macro] Queuing Smart ALL OFF (Fast Simultaneous)..."));
+  Serial.println(F("[Macro] Queuing Smart ALL OFF (Instant Concurrent)..."));
 
-  // 1. Donut Lamp OFF (Trigger FIRST: NEC 0x0000 / 0x41)
+  // 1. RF Overhead Lamp - Trigger IMMEDIATELY at t=0 concurrently with IR
+  if (states.overheadOn) {
+    triggerRFAsync(RF_PIN_POWER, "Overhead Lamp (Smart Turn OFF - Concurrent)");
+    states.overheadOn = false;
+  } else {
+    Serial.println(F("[Macro] Overhead Lamp already assumed OFF, skipping toggle."));
+  }
+
+  // 2. Donut Lamp OFF (Trigger FIRST in IR queue: NEC 0x0000 / 0x41)
   QueueStep donutStep  = { STEP_IR_NEC, 0, DONUT_ADDR,  DONUT_CMD_OFF,  0, nullptr, 0, 0, MACRO_STEP_DELAY_MS, "Donut Lamp OFF" };
   enqueue(donutStep);
   states.donutOn = false;
 
-  // 2. Poster Light OFF (NEC 0x7386 / 0x98)
+  // 3. Poster Light OFF (NEC 0x7386 / 0x98)
   QueueStep posterStep = { STEP_IR_NEC, 0, POSTER_ADDR, POSTER_CMD_OFF, 0, nullptr, 0, 0, MACRO_STEP_DELAY_MS, "Poster Light OFF" };
   enqueue(posterStep);
   states.posterOn = false;
 
-  // 3. Bedside Lamp (Only toggle if currently ON)
+  // 4. Bedside Lamp (Only toggle if currently ON)
   if (states.bedsideOn) {
     QueueStep bedsideStep = { STEP_IR_BEDSIDE, 0, 0, 0, BEDSIDE_CMD_POWER, nullptr, 0, 1, MACRO_STEP_DELAY_MS, "Bedside Lamp (Smart Turn OFF)" };
     enqueue(bedsideStep);
     states.bedsideOn = false;
   } else {
     Serial.println(F("[Macro] Bedside Lamp already assumed OFF, skipping toggle."));
-  }
-
-  // 4. RF Overhead Lamp (Only toggle if currently ON)
-  if (states.overheadOn) {
-    enqueueRFPulse(RF_PIN_POWER, "Overhead Lamp (Smart Turn OFF)");
-    states.overheadOn = false;
-  } else {
-    Serial.println(F("[Macro] Overhead Lamp already assumed OFF, skipping toggle."));
   }
 }
 

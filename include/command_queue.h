@@ -55,6 +55,7 @@ public:
   void sendBedsideRawDirect(uint32_t data, uint16_t repeat = 1);
   void sendRawDirect(const uint16_t* buf, uint16_t len, uint16_t repeat = 0);
   void enqueueRFPulse(uint8_t pin, const char* label);
+  void triggerRFAsync(uint8_t pin, const char* label = nullptr);
 
   // State change notification
   typedef void (*StateChangeCallback)(const DeviceStates& states);
@@ -75,6 +76,11 @@ private:
 
   unsigned long lastStepTime;
   unsigned long stepDuration;
+
+  // Background non-blocking RF pulse tracking
+  uint8_t rfActivePin;
+  unsigned long rfPulseEndTime;
+
   StateChangeCallback stateChangeCb;
 
   DeviceStates states;

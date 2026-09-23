@@ -1,10 +1,23 @@
 #include <Arduino.h>
+
+#if defined(ESP32)
+#include <WiFi.h>
+#include <WebServer.h>
+#include <ESPmDNS.h>
+#include <ArduinoOTA.h>
+#include <WiFiClientSecure.h>
+#include <PubSubClient.h>
+#include "ble_manager.h"
+#define WebServerType WebServer
+#else
 #include <ESP8266WiFi.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
 #include <ArduinoOTA.h>
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
+#define WebServerType ESP8266WebServer
+#endif
 
 #include "secrets.h"
 #include "hardware_config.h"
@@ -12,7 +25,7 @@
 #include "web_ui.h"
 
 // HTTP Web Server on port 80
-ESP8266WebServer server(HTTP_PORT);
+WebServerType server(HTTP_PORT);
 
 // Cloud MQTT Client over TLS (HiveMQ Cloud)
 WiFiClientSecure espClient;
@@ -56,15 +69,19 @@ void triggerDeskLamp(const char* cmd) {
 
 void printMenu() {
   Serial.println(F("\n====================================================="));
+#if defined(ESP32)
+  Serial.println(F("   Universal IR, RF & BLE Lighting Hub (ESP32) Ready "));
+#else
   Serial.println(F("   Universal IR & RF Lighting Hub (ESP8266) Ready    "));
+#endif
   Serial.println(F("====================================================="));
   Serial.println(F("Poster Light (IR NEC):"));
   Serial.println(F("  1 : ON | 2 : OFF | 3 : Color"));
-  Serial.println(F("Donut Lamp (IR NEC):"));
+  Serial.println(F("Donut Lamp (BLE ELK-BLEDOM07 / IR):"));
   Serial.println(F("  4 : ON | 5 : OFF"));
   Serial.println(F("Bedside Lamp (IR Pulse Distance):"));
   Serial.println(F("  6 : Power | 7 : Brighter | 8 : Dimmer | 9 : Warmer | 0 : Cooler"));
-  Serial.println(F("Floor Lamp (RF):"));
+  Serial.println(F("Floor Lamp (Lotus Lamp BLE / RF):"));
   Serial.println(F("  q : Power | w : Warmer | e : Dimmer | r : Cooler | t : Brighter"));
   Serial.println(F("Desk Lamp (Smart Touch via ESP8266):"));
   Serial.println(F("  d : ON (Warm White) | x : OFF | c : Cycle / Tap"));
@@ -86,44 +103,30 @@ void printMenu() {
     } else {
       Serial.println(F("Cloud MQTT:    Not configured (set credentials in include/secrets.h)"));
     }
-  } else {
-    Serial.print(F("Wi-Fi Status [Code "));
-    Serial.print(WiFi.status());
-    Serial.print(F("]: "));
-    switch (WiFi.status()) {
-      case WL_IDLE_STATUS: Serial.println(F("Idle")); break;
-      case WL_NO_SSID_AVAIL: Serial.println(F("SSID Not Found / Out of range")); break;
-      case WL_SCAN_COMPLETED: Serial.println(F("Scan Completed")); break;
-      case WL_CONNECT_FAILED: Serial.println(F("Authentication / Password Failed")); break;
-      case WL_CONNECTION_LOST: Serial.println(F("Connection Lost")); break;
-      case WL_DISCONNECTED: Serial.println(F("Connecting / Disconnected")); break;
-      default: Serial.println(F("Unknown")); break;
-    }
   }
-  Serial.println(F("=====================================================\n"));
 }
 
 void setupWebServer() {
-  // Serve the Web UI from flash memory (PROGMEM)
+  // Serve the embedded responsive dark glassmorphism dashboard
   server.on("/", HTTP_GET, []() {
     server.send_P(200, "text/html", INDEX_HTML);
   });
 
-  // REST API: Trigger a command
-  server.on("/api/command", HTTP_POST, []() {
-    if (!server.hasArg("action")) {
-      server.send(400, "application/json", F("{\"error\":\"Missing action parameter\"}"));
+  // REST API: Trigger any single command queue action
+  server.on("/api/action", HTTP_ANY, []() {
+    if (!server.hasArg("cmd")) {
+      server.send(400, "application/json", F("{\"error\":\"Missing cmd parameter\"}"));
       return;
     }
 
-    String action = server.arg("action");
+    String action = server.arg("cmd");
     bool dispatched = cmdQueue.dispatchAction(action);
 
     if (dispatched) {
-      String res = F("{\"success\":true,\"action\":\"") + action + F("\",\"states\":") + cmdQueue.getStatesJson() + F("}");
+      String res = String("{\"success\":true,\"action\":\"") + action + "\",\"states\":" + cmdQueue.getStatesJson() + "}";
       server.send(200, "application/json", res);
     } else {
-      server.send(404, "application/json", F("{\"error\":\"Unknown action\"}"));
+      server.send(404, "application/json", "{\"error\":\"Unknown action\"}");
     }
   });
 
@@ -135,7 +138,7 @@ void setupWebServer() {
   // REST API: Manual state resynchronization
   server.on("/api/resync", HTTP_POST, []() {
     if (!server.hasArg("device") || !server.hasArg("state")) {
-      server.send(400, "application/json", F("{\"error\":\"Missing device or state parameter\"}"));
+      server.send(400, "application/json", "{\"error\":\"Missing device or state parameter\"}");
       return;
     }
 
@@ -143,7 +146,7 @@ void setupWebServer() {
     bool state = (server.arg("state").toInt() == 1);
     cmdQueue.setDeviceState(device, state);
 
-    String res = F("{\"success\":true,\"states\":") + cmdQueue.getStatesJson() + F("}");
+    String res = String("{\"success\":true,\"states\":") + cmdQueue.getStatesJson() + "}";
     server.send(200, "application/json", res);
   });
 
@@ -165,6 +168,63 @@ void setupWebServer() {
     server.send(200, "application/json", "{\"success\":true,\"action\":\"desk_tap\"}");
   });
 
+#if defined(ESP32)
+  // Floor Lamp BLE Controls
+  server.on("/api/floor/color", HTTP_POST, []() {
+    uint8_t r = server.hasArg("r") ? server.arg("r").toInt() : 255;
+    uint8_t g = server.hasArg("g") ? server.arg("g").toInt() : 255;
+    uint8_t b = server.hasArg("b") ? server.arg("b").toInt() : 255;
+    bleManager.setFloorColor(r, g, b);
+    server.send(200, "application/json", "{\"success\":true}");
+  });
+
+  server.on("/api/floor/brightness", HTTP_POST, []() {
+    uint8_t val = server.hasArg("value") ? server.arg("value").toInt() : 100;
+    bleManager.setFloorBrightness(val);
+    server.send(200, "application/json", "{\"success\":true}");
+  });
+
+  server.on("/api/floor/cct", HTTP_POST, []() {
+    uint8_t warm = server.hasArg("warm") ? server.arg("warm").toInt() : 50;
+    uint8_t cool = server.hasArg("cool") ? server.arg("cool").toInt() : 50;
+    bleManager.setFloorCCT(warm, cool);
+    server.send(200, "application/json", "{\"success\":true}");
+  });
+
+  // Donut Lamp BLE Controls
+  server.on("/api/donut/color", HTTP_POST, []() {
+    uint8_t r = server.hasArg("r") ? server.arg("r").toInt() : 255;
+    uint8_t g = server.hasArg("g") ? server.arg("g").toInt() : 255;
+    uint8_t b = server.hasArg("b") ? server.arg("b").toInt() : 255;
+    bleManager.setDonutColor(r, g, b);
+    server.send(200, "application/json", "{\"success\":true}");
+  });
+
+  server.on("/api/donut/brightness", HTTP_POST, []() {
+    uint8_t val = server.hasArg("value") ? server.arg("value").toInt() : 100;
+    bleManager.setDonutBrightness(val);
+    server.send(200, "application/json", "{\"success\":true}");
+  });
+
+  // Hybrid BLE Management API
+  server.on("/api/ble/release", HTTP_POST, []() {
+    bleManager.releaseBle();
+    server.send(200, "application/json", "{\"success\":true,\"released\":true}");
+  });
+
+  server.on("/api/ble/reconnect", HTTP_POST, []() {
+    bleManager.reconnectBle();
+    server.send(200, "application/json", "{\"success\":true,\"released\":false}");
+  });
+
+  server.on("/api/ble/status", HTTP_GET, []() {
+    String res = "{\"floorConnected\":" + String(bleManager.isFloorConnected() ? "true" : "false") +
+                 ",\"donutConnected\":" + String(bleManager.isDonutConnected() ? "true" : "false") +
+                 ",\"released\":" + String(bleManager.isReleased() ? "true" : "false") + "}";
+    server.send(200, "application/json", res);
+  });
+#endif
+
   // REST API: Directly pulse any individual GPIO pin for hardware diagnosis
   server.on("/api/pulse_pin", HTTP_ANY, []() {
     if (!server.hasArg("pin")) {
@@ -174,19 +234,7 @@ void setupWebServer() {
     uint8_t pin = server.arg("pin").toInt();
     cmdQueue.enqueueRFPulse(pin, "Direct GPIO Pulse");
     Serial.printf("[Diagnostic] Pulsing GPIO %d directly\n", pin);
-    String res = F("{\"success\":true,\"pulsed_pin\":") + String(pin) + F("}");
-    server.send(200, "application/json", res);
-  });
-
-  // REST API: Inspect all GPIO pin levels
-  server.on("/api/pins", HTTP_GET, []() {
-    uint8_t pins[] = { 16, 5, 4, 12, 13, 14, 0, 2, 15 };
-    String res = "{";
-    for (size_t i = 0; i < sizeof(pins); i++) {
-      if (i > 0) res += ",";
-      res += "\"GPIO" + String(pins[i]) + "\":" + String(digitalRead(pins[i]));
-    }
-    res += "}";
+    String res = String("{\"success\":true,\"pulsed_pin\":") + String(pin) + "}";
     server.send(200, "application/json", res);
   });
 
@@ -246,6 +294,51 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     return;
   }
 
+#if defined(ESP32)
+  if (action.startsWith("FLOOR_COLOR:") || action.startsWith("floor_color:")) {
+    String hex = action.substring(12);
+    hex.replace("#", "");
+    long num = strtol(hex.c_str(), NULL, 16);
+    bleManager.setFloorColor((num >> 16) & 0xFF, (num >> 8) & 0xFF, num & 0xFF);
+    return;
+  }
+  if (action.startsWith("FLOOR_CCT:") || action.startsWith("floor_cct:")) {
+    String payload = action.substring(10);
+    int commaIdx = payload.indexOf(',');
+    if (commaIdx > 0) {
+      uint8_t warm = payload.substring(0, commaIdx).toInt();
+      uint8_t cool = payload.substring(commaIdx + 1).toInt();
+      bleManager.setFloorCCT(warm, cool);
+    }
+    return;
+  }
+  if (action.startsWith("DONUT_COLOR:") || action.startsWith("donut_color:")) {
+    String hex = action.substring(12);
+    hex.replace("#", "");
+    long num = strtol(hex.c_str(), NULL, 16);
+    bleManager.setDonutColor((num >> 16) & 0xFF, (num >> 8) & 0xFF, num & 0xFF);
+    return;
+  }
+  if (action.startsWith("FLOOR_BRIGHTNESS:") || action.startsWith("floor_brightness:")) {
+    uint8_t val = action.substring(17).toInt();
+    bleManager.setFloorBrightness(val);
+    return;
+  }
+  if (action.startsWith("DONUT_BRIGHTNESS:") || action.startsWith("donut_brightness:")) {
+    uint8_t val = action.substring(17).toInt();
+    bleManager.setDonutBrightness(val);
+    return;
+  }
+  if (action.equalsIgnoreCase("BLE_RELEASE")) {
+    bleManager.releaseBle();
+    return;
+  }
+  if (action.equalsIgnoreCase("BLE_RECONNECT")) {
+    bleManager.reconnectBle();
+    return;
+  }
+#endif
+
   if (String(topic) == MQTT_TOPIC_COMMAND) {
     bool ok = cmdQueue.dispatchAction(action);
     if (!ok) {
@@ -268,7 +361,9 @@ void setupMqtt() {
 
   // Low-RAM TLS without heavy x509 cert validation chain
   espClient.setInsecure();
+#if !defined(ESP32)
   espClient.setBufferSizes(512, 512);
+#endif
 
   mqttClient.setServer(MQTT_HOST, MQTT_PORT);
   mqttClient.setCallback(mqttCallback);
@@ -298,7 +393,12 @@ void checkMqttConnection() {
     lastMqttReconnect = now;
     Serial.print(F("[MQTT] Connecting to HiveMQ Cloud... "));
 
-    String clientId = String(DEVICE_HOSTNAME) + "-" + String(ESP.getChipId(), HEX);
+#if defined(ESP32)
+    String chipIdStr = String((uint32_t)ESP.getEfuseMac(), HEX);
+#else
+    String chipIdStr = String(ESP.getChipId(), HEX);
+#endif
+    String clientId = String(DEVICE_HOSTNAME) + "-" + chipIdStr;
 
     bool connected = false;
     if (strlen(MQTT_USER) > 0) {
@@ -353,9 +453,15 @@ void startNetworkServices() {
 }
 
 void setupWiFi() {
+#if !defined(ESP32)
   WiFi.persistent(false);
+#endif
   WiFi.mode(WIFI_STA);
+#if defined(ESP32)
+  WiFi.setHostname(DEVICE_HOSTNAME);
+#else
   WiFi.hostname(DEVICE_HOSTNAME);
+#endif
   WiFi.setAutoReconnect(true);
 
   Serial.print(F("[WiFi] Connecting to SSID: \""));
@@ -397,7 +503,6 @@ void handleSerial() {
   while (Serial.available() > 0) {
     char key = (char)Serial.read();
 
-    // Ignore line endings / whitespace
     if (key == '\r' || key == '\n' || key == ' ' || key == '\0') {
       continue;
     }
@@ -407,7 +512,6 @@ void handleSerial() {
       continue;
     }
 
-    // Pass single key character to command queue
     String keyStr = String(key);
     cmdQueue.dispatchAction(keyStr);
   }
@@ -417,14 +521,22 @@ void setup() {
   Serial.begin(115200);
   delay(200);
 
-  // Initialize IR and RF hardware pins
+  // Initialize hardware pins
   cmdQueue.begin();
 
-  // Turn OFF all onboard LEDs (GPIO 2 / D4 and GPIO 16 / D0 are active-LOW)
+#if defined(ESP32)
+  // Initialize BLE Stack & set state sync callback
+  bleManager.begin();
+  bleManager.setStateCallback([](const char* device, bool isOn) {
+    cmdQueue.setDeviceState(device, isOn);
+  });
+#else
+  // Turn OFF all onboard LEDs on ESP8266 (GPIO 2 / D4 and GPIO 16 / D0 are active-LOW)
   pinMode(2, OUTPUT);
   digitalWrite(2, HIGH);
   pinMode(16, OUTPUT);
   digitalWrite(16, HIGH);
+#endif
 
   // Connect to Wi-Fi
   setupWiFi();
@@ -437,14 +549,21 @@ void loop() {
   // Non-blocking hardware pulse and macro state machine
   cmdQueue.update();
 
+#if defined(ESP32)
+  // BLE background maintenance & auto-reconnect
+  bleManager.loop();
+#endif
+
   // Non-blocking HiveMQ Cloud MQTT maintenance & background reconnect
   checkMqttConnection();
 
   // Handle incoming HTTP web client requests
   server.handleClient();
 
-  // Handle mDNS queries
+#if !defined(ESP32)
+  // Handle mDNS queries on ESP8266
   MDNS.update();
+#endif
 
   // Handle OTA update packets
   ArduinoOTA.handle();

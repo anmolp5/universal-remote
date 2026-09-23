@@ -1,5 +1,9 @@
 #include "command_queue.h"
 
+#if defined(ESP32)
+#include "ble_manager.h"
+#endif
+
 // Global IR sender instance on designated GPIO pin
 static IRsend irsend(IR_SEND_PIN);
 
@@ -19,7 +23,40 @@ CommandQueue::CommandQueue()
   states.deskOn     = false;
 }
 
+#if defined(ESP32)
+#include <Preferences.h>
+static Preferences cmdQueuePrefs;
+#endif
+
+void CommandQueue::loadStatesFromNVS() {
+#if defined(ESP32)
+  cmdQueuePrefs.begin("uremote_state", true);
+  states.posterOn   = cmdQueuePrefs.getBool("poster", false);
+  states.donutOn    = cmdQueuePrefs.getBool("donut", false);
+  states.bedsideOn  = cmdQueuePrefs.getBool("bedside", false);
+  states.floorOn    = cmdQueuePrefs.getBool("floor", false);
+  states.overheadOn = states.floorOn;
+  states.deskOn     = cmdQueuePrefs.getBool("desk", false);
+  cmdQueuePrefs.end();
+  Serial.printf("[NVS] Restored states: Floor=%d, Donut=%d, Desk=%d, Bedside=%d, Poster=%d\n",
+    states.floorOn, states.donutOn, states.deskOn, states.bedsideOn, states.posterOn);
+#endif
+}
+
+void CommandQueue::saveStatesToNVS() {
+#if defined(ESP32)
+  cmdQueuePrefs.begin("uremote_state", false);
+  cmdQueuePrefs.putBool("poster", states.posterOn);
+  cmdQueuePrefs.putBool("donut", states.donutOn);
+  cmdQueuePrefs.putBool("bedside", states.bedsideOn);
+  cmdQueuePrefs.putBool("floor", states.floorOn);
+  cmdQueuePrefs.putBool("desk", states.deskOn);
+  cmdQueuePrefs.end();
+#endif
+}
+
 void CommandQueue::begin() {
+  loadStatesFromNVS();
   irsend.begin();
 
   const uint8_t rfPins[] = {
@@ -177,6 +214,16 @@ void CommandQueue::enqueueRFPulse(uint8_t pin, const char* label) {
 void CommandQueue::enqueueMacroAllOn() {
   Serial.println(F("[Macro] Queuing Smart ALL ON (Instant Concurrent)..."));
 
+#if defined(ESP32)
+  // 1. Floor Lamp via Lotus Lamp BLE
+  bleManager.setFloorPower(true);
+  states.floorOn = true;
+  states.overheadOn = true;
+
+  // 2. Donut Lamp via BLE
+  bleManager.setDonutPower(true);
+  states.donutOn = true;
+#else
   // 1. RF Floor Lamp - Trigger IMMEDIATELY at t=0 concurrently with IR
   if (!states.floorOn && !states.overheadOn) {
     triggerRFAsync(RF_PIN_POWER, "Floor Lamp (Smart Turn ON - Concurrent)");
@@ -190,6 +237,7 @@ void CommandQueue::enqueueMacroAllOn() {
   QueueStep donutStep  = { STEP_IR_NEC, 0, DONUT_ADDR,  DONUT_CMD_ON,  0, nullptr, 0, 0, MACRO_STEP_DELAY_MS, "Donut Lamp ON" };
   enqueue(donutStep);
   states.donutOn = true;
+#endif
 
   // 3. Poster Light ON (NEC 0x7386 / 0x03)
   QueueStep posterStep = { STEP_IR_NEC, 0, POSTER_ADDR, POSTER_CMD_ON, 0, nullptr, 0, 0, MACRO_STEP_DELAY_MS, "Poster Light ON" };
@@ -198,7 +246,7 @@ void CommandQueue::enqueueMacroAllOn() {
 
   // 4. Bedside Lamp (Pulse distance protocol: only toggle if currently OFF)
   if (!states.bedsideOn) {
-    QueueStep bedsideStep = { STEP_IR_BEDSIDE, 0, 0, 0, BEDSIDE_CMD_POWER, nullptr, 0, 1, MACRO_STEP_DELAY_MS, "Bedside Lamp (Smart Turn ON)" };
+    QueueStep bedsideStep = { STEP_IR_BEDSIDE, 0, 0, 0, BEDSIDE_CMD_POWER, nullptr, 0, 0, MACRO_STEP_DELAY_MS, "Bedside Lamp (Smart Turn ON)" };
     enqueue(bedsideStep);
     states.bedsideOn = true;
   } else {
@@ -213,6 +261,16 @@ void CommandQueue::enqueueMacroAllOn() {
 void CommandQueue::enqueueMacroAllOff() {
   Serial.println(F("[Macro] Queuing Smart ALL OFF (Instant Concurrent)..."));
 
+#if defined(ESP32)
+  // 1. Floor Lamp via Lotus Lamp BLE
+  bleManager.setFloorPower(false);
+  states.floorOn = false;
+  states.overheadOn = false;
+
+  // 2. Donut Lamp via BLE
+  bleManager.setDonutPower(false);
+  states.donutOn = false;
+#else
   // 1. RF Floor Lamp - Trigger IMMEDIATELY at t=0 concurrently with IR
   if (states.floorOn || states.overheadOn) {
     triggerRFAsync(RF_PIN_POWER, "Floor Lamp (Smart Turn OFF - Concurrent)");
@@ -226,6 +284,7 @@ void CommandQueue::enqueueMacroAllOff() {
   QueueStep donutStep  = { STEP_IR_NEC, 0, DONUT_ADDR,  DONUT_CMD_OFF,  0, nullptr, 0, 0, MACRO_STEP_DELAY_MS, "Donut Lamp OFF" };
   enqueue(donutStep);
   states.donutOn = false;
+#endif
 
   // 3. Poster Light OFF (NEC 0x7386 / 0x98)
   QueueStep posterStep = { STEP_IR_NEC, 0, POSTER_ADDR, POSTER_CMD_OFF, 0, nullptr, 0, 0, MACRO_STEP_DELAY_MS, "Poster Light OFF" };
@@ -234,7 +293,7 @@ void CommandQueue::enqueueMacroAllOff() {
 
   // 4. Bedside Lamp (Only toggle if currently ON)
   if (states.bedsideOn) {
-    QueueStep bedsideStep = { STEP_IR_BEDSIDE, 0, 0, 0, BEDSIDE_CMD_POWER, nullptr, 0, 1, MACRO_STEP_DELAY_MS, "Bedside Lamp (Smart Turn OFF)" };
+    QueueStep bedsideStep = { STEP_IR_BEDSIDE, 0, 0, 0, BEDSIDE_CMD_POWER, nullptr, 0, 0, MACRO_STEP_DELAY_MS, "Bedside Lamp (Smart Turn OFF)" };
     enqueue(bedsideStep);
     states.bedsideOn = false;
   } else {
@@ -261,6 +320,7 @@ void CommandQueue::sendRawDirect(const uint16_t* buf, uint16_t len, uint16_t rep
 }
 
 void CommandQueue::notifyStateChanged() {
+  saveStatesToNVS();
   if (stateChangeCb) {
     stateChangeCb(states);
   }
@@ -303,6 +363,18 @@ String CommandQueue::getStatesJson() const {
 }
 
 bool CommandQueue::dispatchAction(const String& action) {
+  static String lastAction = "";
+  static unsigned long lastActionTime = 0;
+  unsigned long now = millis();
+
+  // Deduplicate rapid identical actions (e.g. simultaneous MQTT + HTTP dual dispatch within 250ms)
+  if (action.equalsIgnoreCase(lastAction) && (now - lastActionTime < 250)) {
+    Serial.printf("[Queue] Dropping duplicate action within 250ms: %s\n", action.c_str());
+    return true;
+  }
+  lastAction = action;
+  lastActionTime = now;
+
   bool handled = false;
 
   // Poster Light
@@ -324,25 +396,40 @@ bool CommandQueue::dispatchAction(const String& action) {
 
   // Donut Lamp
   else if (action.equalsIgnoreCase("donut_on") || action == "4") {
+#if defined(ESP32)
+    bleManager.setDonutPower(true);
+#else
     QueueStep s = { STEP_IR_NEC, 0, DONUT_ADDR, DONUT_CMD_ON, 0, nullptr, 0, 0, 20, "Donut Lamp ON" };
     enqueue(s);
+#endif
     states.donutOn = true;
     handled = true;
   } else if (action.equalsIgnoreCase("donut_off") || action == "5") {
+#if defined(ESP32)
+    bleManager.setDonutPower(false);
+#else
     QueueStep s = { STEP_IR_NEC, 0, DONUT_ADDR, DONUT_CMD_OFF, 0, nullptr, 0, 0, 20, "Donut Lamp OFF" };
     enqueue(s);
+#endif
     states.donutOn = false;
     handled = true;
+  } else if (action.equalsIgnoreCase("donut_power")) {
+#if defined(ESP32)
+    bool next = !states.donutOn;
+    bleManager.setDonutPower(next);
+    states.donutOn = next;
+    handled = true;
+#endif
   }
 
   // Bedside Lamp: Power, Brighter, Dimmer, Warmer, Cooler
   else if (action.equalsIgnoreCase("bedside_power") || action == "6") {
-    QueueStep s = { STEP_IR_BEDSIDE, 0, 0, 0, BEDSIDE_CMD_POWER, nullptr, 0, 1, 30, "Bedside Lamp Power Toggle" };
+    QueueStep s = { STEP_IR_BEDSIDE, 0, 0, 0, BEDSIDE_CMD_POWER, nullptr, 0, 0, 30, "Bedside Lamp Power Toggle" };
     enqueue(s);
     states.bedsideOn = !states.bedsideOn;
     handled = true;
   } else if (action.equalsIgnoreCase("bedside_brighter") || action == "7") {
-    QueueStep s = { STEP_IR_BEDSIDE, 0, 0, 0, BEDSIDE_CMD_BRIGHTER, nullptr, 0, 1, 30, "Bedside Lamp Brighter (0x3B2)" };
+    QueueStep s = { STEP_IR_BEDSIDE, 0, 0, 0, BEDSIDE_CMD_BRIGHTER, nullptr, 0, 0, 30, "Bedside Lamp Brighter (0x3B2)" };
     enqueue(s);
     handled = true;
   } else if (action.equalsIgnoreCase("bedside_dimmer") || action == "8") {
@@ -350,31 +437,91 @@ bool CommandQueue::dispatchAction(const String& action) {
     enqueue(s);
     handled = true;
   } else if (action.equalsIgnoreCase("bedside_warmer") || action == "9") {
-    QueueStep s = { STEP_IR_BEDSIDE, 0, 0, 0, BEDSIDE_CMD_WARMER, nullptr, 0, 1, 30, "Bedside Lamp Warmer" };
+    QueueStep s = { STEP_IR_BEDSIDE, 0, 0, 0, BEDSIDE_CMD_WARMER, nullptr, 0, 0, 30, "Bedside Lamp Warmer" };
     enqueue(s);
     handled = true;
   } else if (action.equalsIgnoreCase("bedside_cooler") || action == "0") {
-    QueueStep s = { STEP_IR_BEDSIDE, 0, 0, 0, BEDSIDE_CMD_COOLER, nullptr, 0, 1, 30, "Bedside Lamp Cooler" };
+    QueueStep s = { STEP_IR_BEDSIDE, 0, 0, 0, BEDSIDE_CMD_COOLER, nullptr, 0, 0, 30, "Bedside Lamp Cooler" };
     enqueue(s);
     handled = true;
   }
 
-  // RF Floor Lamp (formerly Overhead)
-  else if (action.equalsIgnoreCase("floor_power") || action.equalsIgnoreCase("rf_power") || action.equalsIgnoreCase("overhead_power") || action == "q") {
+  // Floor Lamp (Lotus Lamp BLE on ESP32, RF on ESP8266 or backup)
+  else if (action.equalsIgnoreCase("floor_power") || action.equalsIgnoreCase("overhead_power") || action == "q") {
+#if defined(ESP32)
+    bool next = !states.floorOn;
+    bleManager.setFloorPower(next);
+    states.floorOn = next;
+    states.overheadOn = next;
+#else
+    enqueueRFPulse(RF_PIN_POWER, "RF Floor Lamp Power Toggle");
+    states.floorOn = !states.floorOn;
+    states.overheadOn = states.floorOn;
+#endif
+    handled = true;
+  } else if (action.equalsIgnoreCase("floor_on") || action.equalsIgnoreCase("overhead_on")) {
+#if defined(ESP32)
+    bleManager.setFloorPower(true);
+#else
+    if (!states.floorOn) enqueueRFPulse(RF_PIN_POWER, "RF Floor Lamp Turn ON");
+#endif
+    states.floorOn = true;
+    states.overheadOn = true;
+    handled = true;
+  } else if (action.equalsIgnoreCase("floor_off") || action.equalsIgnoreCase("overhead_off")) {
+#if defined(ESP32)
+    bleManager.setFloorPower(false);
+#else
+    if (states.floorOn) enqueueRFPulse(RF_PIN_POWER, "RF Floor Lamp Turn OFF");
+#endif
+    states.floorOn = false;
+    states.overheadOn = false;
+    handled = true;
+  } else if (action.equalsIgnoreCase("floor_warmer") || action.equalsIgnoreCase("overhead_warmer") || action == "w") {
+#if defined(ESP32)
+    bleManager.adjustFloorTemp(true);
+#else
+    enqueueRFPulse(RF_PIN_WARMER, "RF Floor Lamp Warmer");
+#endif
+    handled = true;
+  } else if (action.equalsIgnoreCase("floor_cooler") || action.equalsIgnoreCase("overhead_cooler") || action == "r") {
+#if defined(ESP32)
+    bleManager.adjustFloorTemp(false);
+#else
+    enqueueRFPulse(RF_PIN_COOLER, "RF Floor Lamp Cooler");
+#endif
+    handled = true;
+  } else if (action.equalsIgnoreCase("floor_dimmer") || action.equalsIgnoreCase("overhead_dimmer") || action == "e") {
+#if defined(ESP32)
+    bleManager.adjustFloorBrightness(false);
+#else
+    enqueueRFPulse(RF_PIN_DIMMER, "RF Floor Lamp Dimmer");
+#endif
+    handled = true;
+  } else if (action.equalsIgnoreCase("floor_brighter") || action.equalsIgnoreCase("overhead_brighter") || action == "t") {
+#if defined(ESP32)
+    bleManager.adjustFloorBrightness(true);
+#else
+    enqueueRFPulse(RF_PIN_BRIGHTER, "RF Floor Lamp Brighter");
+#endif
+    handled = true;
+  }
+  // Dedicated RF backup actions
+  else if (action.equalsIgnoreCase("rf_power")) {
     enqueueRFPulse(RF_PIN_POWER, "RF Floor Lamp Power Toggle");
     states.floorOn = !states.floorOn;
     states.overheadOn = states.floorOn;
     handled = true;
-  } else if (action.equalsIgnoreCase("floor_warmer") || action.equalsIgnoreCase("rf_warmer") || action.equalsIgnoreCase("overhead_warmer") || action == "w") {
+  } else if (action.equalsIgnoreCase("rf_warmer")) {
     enqueueRFPulse(RF_PIN_WARMER, "RF Floor Lamp Warmer");
     handled = true;
-  } else if (action.equalsIgnoreCase("floor_dimmer") || action.equalsIgnoreCase("rf_dimmer") || action.equalsIgnoreCase("overhead_dimmer") || action == "e") {
+  } else if (action.equalsIgnoreCase("rf_dimmer")) {
     enqueueRFPulse(RF_PIN_DIMMER, "RF Floor Lamp Dimmer");
     handled = true;
-  } else if (action.equalsIgnoreCase("floor_cooler") || action.equalsIgnoreCase("rf_cooler") || action.equalsIgnoreCase("overhead_cooler") || action == "r") {
+  } else if (action.equalsIgnoreCase("rf_cooler")) {
     enqueueRFPulse(RF_PIN_COOLER, "RF Floor Lamp Cooler");
     handled = true;
-  } else if (action.equalsIgnoreCase("floor_brighter") || action.equalsIgnoreCase("rf_brighter") || action.equalsIgnoreCase("overhead_brighter") || action == "t") {
+  } else if (action.equalsIgnoreCase("rf_brighter")) {
     enqueueRFPulse(RF_PIN_BRIGHTER, "RF Floor Lamp Brighter");
     handled = true;
   }

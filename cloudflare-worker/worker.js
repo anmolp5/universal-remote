@@ -99,6 +99,19 @@ export default {
       } else if (action === 'desk_lamp_tap' || action === 'desk_tap') {
         topic = 'home/desk_lamp/command';
         payload = 'TAP';
+      } else if (action === 'floor_color') {
+        const hex = url.searchParams.get('hex') || 'FFFFFF';
+        payload = `FLOOR_COLOR:#${hex.replace('#', '')}`;
+      } else if (action === 'donut_color') {
+        const hex = url.searchParams.get('hex') || 'FFFFFF';
+        payload = `DONUT_COLOR:#${hex.replace('#', '')}`;
+      } else if (action === 'donut_brightness') {
+        const val = url.searchParams.get('val') || url.searchParams.get('value') || '100';
+        payload = `DONUT_BRIGHTNESS:${val}`;
+      } else if (action === 'ble_release') {
+        payload = 'BLE_RELEASE';
+      } else if (action === 'ble_reconnect') {
+        payload = 'BLE_RECONNECT';
       }
 
       // Connect and publish via direct TLS socket

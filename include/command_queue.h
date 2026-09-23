@@ -69,6 +69,10 @@ public:
   String getStatesJson() const;
   bool isBusy() const;
 
+  // Flash NVS Persistence
+  void loadStatesFromNVS();
+  void saveStatesToNVS();
+
 private:
   static const size_t QUEUE_CAPACITY = 48;
   QueueStep queue[QUEUE_CAPACITY];

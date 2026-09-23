@@ -6,13 +6,15 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Universal Remote</title>
+  <!-- MQTT.js for browser WebSockets -->
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
   <style>
     :root {
-      --bg: #090d16;
-      --card-bg: rgba(22, 27, 39, 0.75);
+      --bg-gradient: radial-gradient(circle at 50% 0%, #171d2b 0%, #0a0d14 100%);
+      --card-bg: rgba(22, 27, 39, 0.72);
       --card-border: rgba(255, 255, 255, 0.08);
       --card-hover-border: rgba(56, 189, 248, 0.28);
       --text-main: #f1f5f9;
@@ -23,6 +25,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       --status-on: #10b981;
       --status-off: #475569;
       --status-warn: #f59e0b;
+      --status-err: #ef4444;
       --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.3);
       --shadow-lg: 0 12px 28px rgba(0, 0, 0, 0.45);
       --radius: 16px;
@@ -37,14 +40,15 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background: radial-gradient(circle at 50% 0%, #172033 0%, var(--bg) 75%);
+      background: var(--bg-gradient);
+      background-color: #0a0d14;
       color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       min-height: 100vh;
-      padding: 10px 10px 24px;
       display: flex;
       flex-direction: column;
       align-items: center;
+      padding: 10px 10px 24px;
     }
 
     header {
@@ -57,38 +61,94 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       padding: 2px 4px;
     }
 
-    .header-left h1 {
+    .title-group h1 {
       font-size: 1.6rem;
       font-weight: 800;
       letter-spacing: -0.02em;
       color: #ffffff;
     }
 
-    .header-left p {
+    .title-group p {
       font-size: 0.78rem;
       color: var(--text-muted);
       margin-top: 1px;
     }
 
-    .status-pill {
-      display: inline-flex;
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .cloud-badge {
+      display: flex;
       align-items: center;
       gap: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
       padding: 6px 12px;
       border-radius: 20px;
       font-size: 0.75rem;
       font-weight: 600;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .cloud-badge.online {
       color: var(--status-on);
+      border-color: rgba(16, 185, 129, 0.3);
+      background: rgba(16, 185, 129, 0.1);
+    }
+
+    .cloud-badge.connecting {
+      color: var(--status-warn);
+      border-color: rgba(245, 158, 11, 0.3);
+      background: rgba(245, 158, 11, 0.1);
+    }
+
+    .cloud-badge.offline {
+      color: var(--status-err);
+      border-color: rgba(239, 68, 68, 0.3);
+      background: rgba(239, 68, 68, 0.1);
     }
 
     .pulse-dot {
       width: 7px;
       height: 7px;
       border-radius: 50%;
-      background: var(--status-on);
-      box-shadow: 0 0 8px var(--status-on);
+      background: currentColor;
+    }
+
+    .cloud-badge.online .pulse-dot {
+      box-shadow: 0 0 8px currentColor;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.95); opacity: 0.7; }
+      50% { transform: scale(1.25); opacity: 1; }
+      100% { transform: scale(0.95); opacity: 0.7; }
+    }
+
+    .btn-settings {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--card-border);
+      color: var(--text-main);
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      padding: 0;
+    }
+
+    .btn-settings:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: var(--accent-blue);
     }
 
     /* Main Grid Layout */
@@ -275,36 +335,18 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     /* Floor Lamp Full-Width Controls Row */
     .floor-controls-row {
       display: grid;
-      grid-template-columns: 1fr 3.8fr;
-      gap: 8px;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
       align-items: center;
     }
 
-    .btn-floor-power {
-      aspect-ratio: 1 / 1;
-      width: 100%;
-      max-height: 54px;
-      font-size: 0.82rem;
-      font-weight: 700;
-      background: rgba(56, 189, 248, 0.12);
-      border-color: rgba(56, 189, 248, 0.3);
-      color: #7dd3fc;
-      border-radius: 10px;
-    }
-
-    .floor-quad-row {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 6px;
-    }
-
-    .floor-quad-row .btn-quad {
+    .floor-controls-row .btn-quad {
       aspect-ratio: 1 / 1;
       width: 100%;
       max-height: 54px;
       padding: 0;
       font-size: 0.82rem;
-      font-weight: 600;
+      font-weight: 700;
       border-radius: 10px;
     }
 
@@ -481,6 +523,252 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       color: var(--text-main);
     }
 
+    .cct-presets-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+      width: 100%;
+    }
+
+    .btn-cct {
+      flex: 1;
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 6px 4px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: var(--text-main);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      transition: background 0.15s, border-color 0.15s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    .btn-cct:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.22);
+    }
+
+    .btn-cct:active {
+      transform: scale(0.96);
+    }
+
+    .btn-cct-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .rgb-slider-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 6px 0;
+      width: 100%;
+    }
+
+    .rgb-slider-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.72rem;
+    }
+
+    .rgb-label {
+      font-weight: 700;
+      width: 14px;
+      font-family: monospace;
+    }
+
+    .rgb-r { color: #ff5555; }
+    .rgb-g { color: #55ff77; }
+    .rgb-b { color: #5599ff; }
+
+    .rgb-slider {
+      flex: 1;
+      height: 4px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.15);
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+      cursor: pointer;
+    }
+
+    .rgb-slider-red { accent-color: #ff4444; }
+    .rgb-slider-green { accent-color: #22c55e; }
+    .rgb-slider-blue { accent-color: #3b82f6; }
+
+    .rgb-val {
+      font-size: 0.68rem;
+      font-family: monospace;
+      color: var(--text-muted);
+      width: 28px;
+      text-align: right;
+    }
+
+    .rgb-preview-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 2px;
+      padding-top: 4px;
+    }
+
+    .rgb-preview-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      flex-shrink: 0;
+    }
+
+    .rgb-preview-hex {
+      font-size: 0.7rem;
+      font-family: monospace;
+      color: var(--text-main);
+      letter-spacing: 0.5px;
+    }
+
+    .color-palette-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 4px 0;
+    }
+
+    .btn-color-dot {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      cursor: pointer;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+
+    .btn-color-dot:active {
+      transform: scale(0.85);
+    }
+
+    .btn-color-picker-label {
+      display: inline-flex;
+      align-items: center;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: var(--text-main);
+      cursor: pointer;
+    }
+
+    .brightness-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 0;
+    }
+
+    /* Modal Backdrop & Card */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 100;
+    }
+
+    .modal-backdrop.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      background: #161b27;
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      width: 100%;
+      max-width: 420px;
+      padding: 22px;
+      box-shadow: var(--shadow-lg);
+    }
+
+    .modal-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.74rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .form-group input {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--card-border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      color: var(--text-main);
+      font-size: 0.85rem;
+      outline: none;
+    }
+
+    .form-group input:focus {
+      border-color: var(--accent-blue);
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 18px;
+    }
+
+    .btn-cancel {
+      background: transparent;
+      border: 1px solid var(--card-border);
+      color: var(--text-muted);
+      padding: 8px 14px;
+      border-radius: 8px;
+    }
+
+    .btn-save {
+      background: var(--accent-blue);
+      border: 1px solid var(--accent-blue);
+      color: #041019;
+      font-weight: 700;
+      padding: 8px 14px;
+      border-radius: 8px;
+    }
+
+    /* Toast Notification */
     #toast {
       position: fixed;
       bottom: 24px;
@@ -510,13 +798,21 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 <body>
 
   <header>
-    <div class="header-left">
+    <div class="title-group">
       <h1>Universal Remote</h1>
-      <p>Local Lighting Hub</p>
+      <p>Smart Lighting Hub</p>
     </div>
-    <div class="status-pill">
-      <span class="pulse-dot"></span>
-      <span id="netBadge">LAN Live</span>
+    <div class="header-actions">
+      <div class="cloud-badge offline" id="cloudBadge" onclick="openSettings()">
+        <span class="pulse-dot"></span>
+        <span id="cloudStatusText">Offline</span>
+      </div>
+      <button class="btn-settings" onclick="openSettings()" title="Settings">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
     </div>
   </header>
 
@@ -550,17 +846,37 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       </div>
       <div class="card-body">
         <div class="floor-controls-row">
-          <button class="btn-floor-power" onclick="sendCmd('floor_power', 'Floor Power')">Power</button>
-          <div class="floor-quad-row">
-            <button class="btn-quad" onclick="sendCmd('floor_brighter', 'Floor Brighter')" title="Brighter">▲</button>
-            <button class="btn-quad" onclick="sendCmd('floor_dimmer', 'Floor Dimmer')" title="Dimmer">▼</button>
-            <button class="btn-quad" onclick="sendCmd('floor_warmer', 'Floor Warmer')">Warm</button>
-            <button class="btn-quad" onclick="sendCmd('floor_cooler', 'Floor Cooler')">Cool</button>
-          </div>
+          <button class="btn-quad btn-on" onclick="sendCmd('floor_on', 'Floor ON')">ON</button>
+          <button class="btn-quad btn-off" onclick="sendCmd('floor_off', 'Floor OFF')">OFF</button>
+          <button class="btn-quad" onclick="sendCmd('floor_brighter', 'Floor Brighter')" title="Brighter">▲</button>
+          <button class="btn-quad" onclick="sendCmd('floor_dimmer', 'Floor Dimmer')" title="Dimmer">▼</button>
+          <button class="btn-quad" onclick="sendCmd('floor_warmer', 'Floor Warmer')">Warm</button>
+          <button class="btn-quad" onclick="sendCmd('floor_cooler', 'Floor Cooler')">Cool</button>
         </div>
       </div>
       <div class="drawer" id="floorDrawer">
         <div class="drawer-inner">
+          <div class="cct-presets-row">
+            <button class="btn-cct" onclick="sendFloorCCT(100,0, 'Warm White (2700K)')">
+              <span class="btn-cct-dot" style="background:#FFA53C;"></span> Warm 2700K
+            </button>
+            <button class="btn-cct" onclick="sendFloorCCT(50,50, 'Neutral White (4000K)')">
+              <span class="btn-cct-dot" style="background:#FFF1E0;"></span> Neutral 4000K
+            </button>
+            <button class="btn-cct" onclick="sendFloorCCT(0,100, 'Cool White (6500K)')">
+              <span class="btn-cct-dot" style="background:#F0F8FF;"></span> Cool 6500K
+            </button>
+          </div>
+          <div class="color-palette-row">
+            <button class="btn-color-dot" style="background:#FF3333;" onclick="sendFloorColor(255,50,50, 'Ruby Red')" title="Red"></button>
+            <button class="btn-color-dot" style="background:#33FF57;" onclick="sendFloorColor(50,255,87, 'Emerald')" title="Green"></button>
+            <button class="btn-color-dot" style="background:#3380FF;" onclick="sendFloorColor(50,128,255, 'Ocean Blue')" title="Blue"></button>
+            <button class="btn-color-dot" style="background:#D833FF;" onclick="sendFloorColor(216,51,255, 'Purple')" title="Purple"></button>
+            <label class="btn-color-picker-label">
+              <input type="color" value="#ffffff" onchange="pickFloorColor(this.value)" style="opacity:0; width:1px; height:1px; position:absolute;">
+              <span>🎨 Custom</span>
+            </label>
+          </div>
           <div class="resync-bar">
             <span class="resync-label">Sync:</span>
             <button class="btn-pill" onclick="resync('floor', 1)">ON</button>
@@ -657,6 +973,9 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
         <div class="card-title">Donut</div>
         <div class="header-right">
           <span class="status-badge" id="donutBadge">OFF</span>
+          <button class="btn-expand" onclick="toggleDrawer('donutDrawer', this)" aria-label="Expand">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </button>
         </div>
       </div>
       <div class="card-body">
@@ -665,13 +984,123 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
           <button class="btn-square btn-off" onclick="sendCmd('donut_off', 'Donut OFF')">OFF</button>
         </div>
       </div>
+      <div class="drawer" id="donutDrawer">
+        <div class="drawer-inner">
+          <div class="color-palette-row">
+            <button class="btn-color-dot" style="background:#FFA53C;" onclick="sendDonutColor(255,165,60, 'Warm White')" title="Warm White"></button>
+            <button class="btn-color-dot" style="background:#FF3333;" onclick="sendDonutColor(255,0,0, 'Red')" title="Red"></button>
+            <button class="btn-color-dot" style="background:#33FF57;" onclick="sendDonutColor(0,255,0, 'Green')" title="Green"></button>
+            <button class="btn-color-dot" style="background:#3380FF;" onclick="sendDonutColor(0,0,255, 'Blue')" title="Blue"></button>
+            <button class="btn-color-dot" style="background:#FFD700;" onclick="sendDonutColor(255,215,0, 'Gold')" title="Gold"></button>
+            <button class="btn-color-dot" style="background:#D833FF;" onclick="sendDonutColor(216,51,255, 'Purple')" title="Purple"></button>
+          </div>
+          <div class="rgb-slider-group">
+            <div class="rgb-slider-row">
+              <span class="rgb-label rgb-r">R</span>
+              <input type="range" class="rgb-slider rgb-slider-red" id="donutR" min="0" max="255" value="255" oninput="onDonutRgbInput()" onchange="onDonutRgbChange()">
+              <span class="rgb-val" id="donutRVal">255</span>
+            </div>
+            <div class="rgb-slider-row">
+              <span class="rgb-label rgb-g">G</span>
+              <input type="range" class="rgb-slider rgb-slider-green" id="donutG" min="0" max="255" value="165" oninput="onDonutRgbInput()" onchange="onDonutRgbChange()">
+              <span class="rgb-val" id="donutGVal">165</span>
+            </div>
+            <div class="rgb-slider-row">
+              <span class="rgb-label rgb-b">B</span>
+              <input type="range" class="rgb-slider rgb-slider-blue" id="donutB" min="0" max="255" value="60" oninput="onDonutRgbInput()" onchange="onDonutRgbChange()">
+              <span class="rgb-val" id="donutBVal">60</span>
+            </div>
+            <div class="rgb-preview-row">
+              <div class="rgb-preview-dot" id="donutPreviewDot" style="background: rgb(255, 165, 60);"></div>
+              <span class="rgb-preview-hex" id="donutPreviewHex">#FFA53C</span>
+              <button class="btn-pill" onclick="applyDonutRgb()">Apply</button>
+            </div>
+          </div>
+          <div class="brightness-row">
+            <span class="resync-label">Bri:</span>
+            <button class="btn-pill" onclick="sendDonutBri(25)">25%</button>
+            <button class="btn-pill" onclick="sendDonutBri(50)">50%</button>
+            <button class="btn-pill" onclick="sendDonutBri(75)">75%</button>
+            <button class="btn-pill" onclick="sendDonutBri(100)">100%</button>
+          </div>
+          <div class="resync-bar">
+            <span class="resync-label">Sync:</span>
+            <button class="btn-pill" onclick="resync('donut', 1)">ON</button>
+            <button class="btn-pill" onclick="resync('donut', 0)">OFF</button>
+          </div>
+        </div>
+      </div>
     </div>
   </main>
+
+  <!-- Settings Modal -->
+  <div class="modal-backdrop" id="settingsModal">
+    <div class="modal-card">
+      <div class="modal-title">
+        <span>HiveMQ Cloud Settings</span>
+        <span style="cursor:pointer; font-size:1.2rem;" onclick="closeSettings()">&times;</span>
+      </div>
+      <div class="form-group">
+        <label>Cluster Host</label>
+        <input type="text" id="cfgHost" placeholder="e.g. xxxxxx.s1.eu.hivemq.cloud" />
+      </div>
+      <div class="form-group">
+        <label>WebSockets Port</label>
+        <input type="number" id="cfgPort" value="8884" />
+      </div>
+      <div class="form-group">
+        <label>Path</label>
+        <input type="text" id="cfgPath" value="/mqtt" />
+      </div>
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="cfgUser" placeholder="HiveMQ credentials username" />
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="cfgPass" placeholder="HiveMQ credentials password" />
+      </div>
+      <div class="form-group">
+        <label>Topic Prefix</label>
+        <input type="text" id="cfgPrefix" value="home/universal_remote" />
+      </div>
+      <div class="form-group" style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--card-border);">
+        <label style="font-weight:700; color:#38bdf8;">Bluetooth Low Energy (BLE)</label>
+        <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:8px;">Disconnect ESP32 so Lotus Lamp or Donut phone apps can connect:</p>
+        <div style="display:flex; gap:8px;">
+          <button class="btn-cancel" style="flex:1;" type="button" onclick="releaseBle()">Release BLE</button>
+          <button class="btn-save" style="flex:1;" type="button" onclick="reconnectBle()">Reconnect BLE</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeSettings()">Cancel</button>
+        <button class="btn-save" onclick="saveSettings()">Save & Connect</button>
+      </div>
+    </div>
+  </div>
 
   <div id="toast"></div>
 
   <script>
+    let client = null;
     let toastTimer = null;
+
+    const defaultCfg = {
+      host: '0a91464cd01b488489e6e5603cba4112.s1.eu.hivemq.cloud',
+      port: 8884,
+      path: '/mqtt',
+      user: 'anmolp',
+      pass: 'aplights',
+      prefix: 'home/universal_remote'
+    };
+
+    function loadConfig() {
+      const stored = localStorage.getItem('remote_mqtt_cfg');
+      if (stored) {
+        try { return Object.assign({}, defaultCfg, JSON.parse(stored)); } catch(e){}
+      }
+      return Object.assign({}, defaultCfg);
+    }
 
     function showToast(msg) {
       const toast = document.getElementById('toast');
@@ -716,90 +1145,337 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       el.className = 'status-badge ' + (isOn ? 'on' : 'off');
     }
 
-    function parseStatus(data) {
+    function setConnectionStatus(status, text) {
+      const badge = document.getElementById('cloudBadge');
+      const label = document.getElementById('cloudStatusText');
+      badge.className = 'cloud-badge ' + status;
+      label.textContent = text;
+    }
+
+    function openSettings() {
+      const cfg = loadConfig();
+      document.getElementById('cfgHost').value = cfg.host;
+      document.getElementById('cfgPort').value = cfg.port;
+      document.getElementById('cfgPath').value = cfg.path;
+      document.getElementById('cfgUser').value = cfg.user;
+      document.getElementById('cfgPass').value = cfg.pass;
+      document.getElementById('cfgPrefix').value = cfg.prefix;
+      document.getElementById('settingsModal').classList.add('active');
+    }
+
+    function closeSettings() {
+      document.getElementById('settingsModal').classList.remove('active');
+    }
+
+    function saveSettings() {
+      const cfg = {
+        host: document.getElementById('cfgHost').value.trim(),
+        port: parseInt(document.getElementById('cfgPort').value.trim()) || 8884,
+        path: document.getElementById('cfgPath').value.trim(),
+        user: document.getElementById('cfgUser').value.trim(),
+        pass: document.getElementById('cfgPass').value.trim(),
+        prefix: document.getElementById('cfgPrefix').value.trim()
+      };
+      localStorage.setItem('remote_mqtt_cfg', JSON.stringify(cfg));
+      closeSettings();
+      initMqtt();
+    }
+
+    function initMqtt() {
+      const cfg = loadConfig();
+      if (client) {
+        try { client.end(true); } catch(e){}
+      }
+
+      setConnectionStatus('connecting', 'Connecting...');
+
+      const brokerUrl = `wss://${cfg.host}:${cfg.port}${cfg.path}`;
+      console.log('[MQTT] Connecting to:', brokerUrl);
+
+      try {
+        client = mqtt.connect(brokerUrl, {
+          clientId: 'portal-' + Math.random().toString(16).substr(2, 8),
+          username: cfg.user,
+          password: cfg.pass,
+          clean: true,
+          connectTimeout: 5000,
+          reconnectPeriod: 4000
+        });
+
+        client.on('connect', () => {
+          console.log('[MQTT] Connected to cloud broker');
+          setConnectionStatus('online', 'Connected');
+
+          const statusTopic = `${cfg.prefix}/status`;
+          const availTopic = `${cfg.prefix}/availability`;
+          const deskStatusTopic = 'home/desk_lamp/status';
+          const deskAvailTopic = 'home/desk_lamp/availability';
+
+          client.subscribe([statusTopic, availTopic, deskStatusTopic, deskAvailTopic], (err) => {
+            if (!err) console.log('Subscribed to status topics');
+          });
+        });
+
+        client.on('message', (topic, payload) => {
+          const str = payload.toString();
+          console.log('[MQTT RX]', topic, str);
+
+          if (topic === 'home/desk_lamp/status') {
+            try {
+              const data = JSON.parse(str);
+              updateBadge('deskBadge', data.state === 'ON');
+            } catch(e) {
+              updateBadge('deskBadge', str.toUpperCase() === 'ON');
+            }
+          } else if (topic.endsWith('/status')) {
+            try {
+              const data = JSON.parse(str);
+              updateStatesFromJson(data);
+            } catch(e){}
+          } else if (topic.endsWith('/availability')) {
+            if (str === 'offline') {
+              showToast('Device went offline');
+            }
+          }
+        });
+
+        client.on('error', (err) => {
+          console.error('[MQTT Error]', err);
+          setConnectionStatus('offline', 'Error');
+        });
+
+        client.on('close', () => {
+          setConnectionStatus('offline', 'Disconnected');
+        });
+
+        client.on('reconnect', () => {
+          setConnectionStatus('connecting', 'Connecting...');
+        });
+
+      } catch (err) {
+        console.error('Failed to init MQTT:', err);
+        setConnectionStatus('offline', 'Failed');
+      }
+    }
+
+    function updateStatesFromJson(data) {
       if (!data) return;
-      updateBadge('posterBadge', data.poster);
-      updateBadge('donutBadge', data.donut);
-      updateBadge('bedsideBadge', data.bedside);
-      const floorState = data.floor !== undefined ? data.floor : data.overhead;
-      updateBadge('floorBadge', floorState);
-      if (data.desk !== undefined) {
-        updateBadge('deskBadge', data.desk);
-      }
-
-      const hubState = document.getElementById('hubState');
-      if (hubState) {
-        hubState.textContent = data.busy ? 'Busy' : 'Ready';
-        hubState.className = 'status-badge ' + (data.busy ? 'on' : '');
-      }
-    }
-
-    async function sendCmd(action, label) {
-      haptic();
-      showToast(label || action);
+      let cached = {};
       try {
-        const res = await fetch(`/api/command?action=${encodeURIComponent(action)}`, {
-          method: 'POST'
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.states) {
-            parseStatus(data.states);
-          }
-        }
-      } catch (err) {
-        showToast('Error sending command');
-      }
-    }
-
-    async function sendDeskCmd(action, label) {
-      haptic();
-      showToast(label || action);
-      try {
-        const cmd = action === 'ON' ? 'desk_on' : (action === 'OFF' ? 'desk_off' : 'desk_tap');
-        const res = await fetch(`/api/${cmd}`, { method: 'POST' });
-        if (res.ok) {
-          setTimeout(pollStatus, 250);
-        }
+        cached = JSON.parse(localStorage.getItem('cached_device_states') || '{}');
       } catch(e) {}
-    }
-
-    async function resync(device, state) {
-      haptic();
-      showToast(`Sync ${device} -> ${state ? 'ON' : 'OFF'}`);
+      const merged = { ...cached, ...data };
       try {
-        const res = await fetch(`/api/resync?device=${encodeURIComponent(device)}&state=${state}`, {
-          method: 'POST'
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.states) {
-            parseStatus(data.states);
-          }
-        }
-      } catch (err) {
-        showToast('Resync failed');
+        localStorage.setItem('cached_device_states', JSON.stringify(merged));
+      } catch(e) {}
+
+      if (merged.poster !== undefined) updateBadge('posterBadge', merged.poster);
+      if (merged.donut !== undefined) updateBadge('donutBadge', merged.donut);
+      if (merged.bedside !== undefined) updateBadge('bedsideBadge', merged.bedside);
+      const floorVal = merged.floor !== undefined ? merged.floor : merged.overhead;
+      if (floorVal !== undefined) updateBadge('floorBadge', floorVal);
+      if (merged.desk !== undefined) updateBadge('deskBadge', merged.desk);
+      const hubState = document.getElementById('hubState');
+      if (hubState && merged.busy !== undefined) {
+        hubState.textContent = merged.busy ? 'Busy' : 'Ready';
+        hubState.className = 'status-badge ' + (merged.busy ? 'on' : '');
       }
     }
 
-    async function pollStatus() {
-      try {
-        const res = await fetch('/api/status');
-        if (res.ok) {
-          const data = await res.json();
-          parseStatus(data);
-          document.getElementById('netBadge').style.opacity = '1';
-        }
-      } catch (err) {
-        document.getElementById('netBadge').style.opacity = '0.4';
+    function sendCmd(action, label) {
+      haptic();
+      showToast(label || action);
+
+      const cfg = loadConfig();
+      if (client && client.connected) {
+        const cmdTopic = `${cfg.prefix}/command`;
+        client.publish(cmdTopic, action, { qos: 0 });
+      } else {
+        fetch('/api/action?cmd=' + encodeURIComponent(action))
+          .then(r => r.json())
+          .then(d => {
+            if (d.states) updateStatesFromJson(d.states);
+          })
+          .catch(() => {});
+      }
+    }
+
+    function sendFloorCCT(warm, cool, label) {
+      haptic();
+      showToast(label || 'Floor White Mode');
+      const cfg = loadConfig();
+      if (client && client.connected) {
+        client.publish(`${cfg.prefix}/command`, `FLOOR_CCT:${warm},${cool}`);
+      } else {
+        fetch(`/api/floor/cct?warm=${warm}&cool=${cool}`, { method: 'POST' }).catch(()=>{});
+      }
+    }
+
+    function sendFloorColor(r, g, b, label) {
+      haptic();
+      showToast(label || 'Floor Color');
+      const hex = ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+      const cfg = loadConfig();
+      if (client && client.connected) {
+        client.publish(`${cfg.prefix}/command`, `FLOOR_COLOR:#${hex}`);
+      } else {
+        fetch(`/api/floor/color?r=${r}&g=${g}&b=${b}`, { method: 'POST' }).catch(()=>{});
+      }
+    }
+
+    function pickFloorColor(hex) {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      sendFloorColor(r, g, b, 'Custom Color');
+    }
+
+    let donutRgbDebounce = null;
+    function onDonutRgbInput() {
+      const r = parseInt(document.getElementById('donutR').value);
+      const g = parseInt(document.getElementById('donutG').value);
+      const b = parseInt(document.getElementById('donutB').value);
+      document.getElementById('donutRVal').textContent = r;
+      document.getElementById('donutGVal').textContent = g;
+      document.getElementById('donutBVal').textContent = b;
+      const hex = '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
+      document.getElementById('donutPreviewDot').style.background = `rgb(${r},${g},${b})`;
+      document.getElementById('donutPreviewHex').textContent = hex;
+
+      if (!donutRgbDebounce) {
+        donutRgbDebounce = setTimeout(() => {
+          donutRgbDebounce = null;
+          sendDonutColor(r, g, b, 'Donut RGB', false);
+        }, 100);
+      }
+    }
+
+    function onDonutRgbChange() {
+      const r = parseInt(document.getElementById('donutR').value);
+      const g = parseInt(document.getElementById('donutG').value);
+      const b = parseInt(document.getElementById('donutB').value);
+      sendDonutColor(r, g, b, 'Donut RGB', true);
+    }
+
+    function applyDonutRgb() {
+      onDonutRgbChange();
+    }
+
+    function syncDonutSliders(r, g, b) {
+      const rEl = document.getElementById('donutR');
+      const gEl = document.getElementById('donutG');
+      const bEl = document.getElementById('donutB');
+      if (rEl && gEl && bEl) {
+        rEl.value = r;
+        gEl.value = g;
+        bEl.value = b;
+        document.getElementById('donutRVal').textContent = r;
+        document.getElementById('donutGVal').textContent = g;
+        document.getElementById('donutBVal').textContent = b;
+        const hex = '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
+        document.getElementById('donutPreviewDot').style.background = `rgb(${r},${g},${b})`;
+        document.getElementById('donutPreviewHex').textContent = hex;
+      }
+    }
+
+    function sendDonutColor(r, g, b, label, showToastMsg = true) {
+      if (showToastMsg) {
+        haptic();
+        showToast(label || 'Donut Color');
+      }
+      syncDonutSliders(r, g, b);
+      const hex = ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+      const cfg = loadConfig();
+      if (client && client.connected) {
+        client.publish(`${cfg.prefix}/command`, `DONUT_COLOR:#${hex}`);
+      } else {
+        fetch(`/api/donut/color?r=${r}&g=${g}&b=${b}`, { method: 'POST' }).catch(()=>{});
+      }
+    }
+
+    function sendDonutBri(val) {
+      haptic();
+      showToast(`Donut ${val}%`);
+      const cfg = loadConfig();
+      if (client && client.connected) {
+        client.publish(`${cfg.prefix}/command`, `DONUT_BRIGHTNESS:${val}`);
+      } else {
+        fetch(`/api/donut/brightness?value=${val}`, { method: 'POST' }).catch(()=>{});
+      }
+    }
+
+    function releaseBle() {
+      haptic();
+      showToast('BLE Released');
+      const cfg = loadConfig();
+      if (client && client.connected) {
+        client.publish(`${cfg.prefix}/command`, 'BLE_RELEASE');
+      } else {
+        fetch('/api/ble/release', { method: 'POST' }).catch(()=>{});
+      }
+    }
+
+    function reconnectBle() {
+      haptic();
+      showToast('BLE Reconnecting');
+      const cfg = loadConfig();
+      if (client && client.connected) {
+        client.publish(`${cfg.prefix}/command`, 'BLE_RECONNECT');
+      } else {
+        fetch('/api/ble/reconnect', { method: 'POST' }).catch(()=>{});
+      }
+    }
+
+    function sendDeskCmd(action, label) {
+      haptic();
+      showToast(label || action);
+
+      if (client && client.connected) {
+        client.publish('home/desk_lamp/command', action, { qos: 0 });
+      } else {
+        fetch('http://desk-lamp.local/api/lamp/' + action.toLowerCase(), { mode: 'no-cors' })
+          .catch(() => {});
+      }
+    }
+
+    function resync(device, state) {
+      haptic();
+      const stateStr = state ? 'on' : 'off';
+      showToast(`Sync ${device} -> ${stateStr.toUpperCase()}`);
+      sendCmd(`sync_${device}_${stateStr}`, `Sync ${device} ${stateStr.toUpperCase()}`);
+    }
+
+    // Auto action from URL parameter for Apple Shortcuts / Siri triggers
+    function checkUrlAction() {
+      const params = new URLSearchParams(window.location.search);
+      const action = params.get('action');
+      if (action) {
+        console.log('[Auto Action] Triggering:', action);
+        showToast(`Triggering: ${action}`);
+        const tryDispatch = () => {
+          if (client && client.connected) {
+            sendCmd(action, `Auto: ${action}`);
+          } else {
+            setTimeout(tryDispatch, 200);
+          }
+        };
+        tryDispatch();
       }
     }
 
     window.addEventListener('DOMContentLoaded', () => {
-      pollStatus();
-      setInterval(pollStatus, 2000);
+      try {
+        const cached = JSON.parse(localStorage.getItem('cached_device_states') || '{}');
+        if (Object.keys(cached).length > 0) {
+          updateStatesFromJson(cached);
+        }
+      } catch(e) {}
+      fetch('/api/status').then(r => r.json()).then(updateStatesFromJson).catch(()=>{});
+      initMqtt();
+      checkUrlAction();
     });
   </script>
 </body>
 </html>
+
 )rawliteral";

@@ -3,16 +3,34 @@
 #include <Arduino.h>
 
 // ==========================================
-// Pin Definitions (ESP8266 Safe GPIOs)
+// Pin Definitions
 // ==========================================
+#if defined(ESP32)
+// ESP32 DevKit v1 Pins
+const uint16_t IR_SEND_PIN    = 4;  // D4 / GPIO4 (IR Transmitter LED)
+
+// RF Remote LM3046 Transistor Pins (Retained in software as backup)
+const uint8_t RF_PIN_POWER    = 18; // D18 / GPIO18
+const uint8_t RF_PIN_WARMER   = 19; // D19 / GPIO19
+const uint8_t RF_PIN_DIMMER   = 21; // D21 / GPIO21
+const uint8_t RF_PIN_COOLER   = 22; // D22 / GPIO22
+const uint8_t RF_PIN_BRIGHTER = 23; // D23 / GPIO23
+
+// BLE Peripheral MAC Addresses
+#define FLOOR_LAMP_BLE_ADDR "be:28:fe:00:07:1b" // Lotus Lamp MELK-OA10WCT
+#define DONUT_LAMP_BLE_ADDR "be:67:00:41:85:77" // Donut Lamp ELK-BLEDOM07
+
+#else
+// ESP8266 Safe GPIOs
 const uint16_t IR_SEND_PIN    = 14; // D5 / GPIO14 (IR Transmitter LED)
 
 // ESP8266 Pins driving LM3046 Transistor Bases for RF Remote
 const uint8_t RF_PIN_POWER    = 12; // D6 / GPIO12
 const uint8_t RF_PIN_WARMER   = 5;  // D1 / GPIO5
 const uint8_t RF_PIN_DIMMER   = 13; // D7 / GPIO13
-const uint8_t RF_PIN_COOLER   = 15; // D8 / GPIO15 (Moved from D0 to disable onboard LED)
+const uint8_t RF_PIN_COOLER   = 15; // D8 / GPIO15
 const uint8_t RF_PIN_BRIGHTER = 4;  // D2 / GPIO4
+#endif
 
 // ==========================================
 // Timing Constants (Milliseconds) - Tuned for Instant Multi-Device Response

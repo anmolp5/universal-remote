@@ -42,6 +42,9 @@ Create additional shortcuts in 10 seconds each:
 | :--- | :--- |
 | **"All Lights Off"** / **"Goodnight"** | `https://lights.anmolp.workers.dev/all_off` |
 | **"Turn on Floor Lamp"** | `https://lights.anmolp.workers.dev/floor_power` |
+| **"Turn on Ceiling Lights"** | `https://lights.anmolp.workers.dev/ceiling_on` |
+| **"Turn off Ceiling Lights"** | `https://lights.anmolp.workers.dev/ceiling_off` |
+| **"Toggle Ceiling Lights"** | `https://lights.anmolp.workers.dev/ceiling_power` |
 | **"Turn on Donut Lamp"** | `https://lights.anmolp.workers.dev/donut_on` |
 | **"Turn off Donut Lamp"** | `https://lights.anmolp.workers.dev/donut_off` |
 | **"Turn on Poster Light"** | `https://lights.anmolp.workers.dev/poster_on` |

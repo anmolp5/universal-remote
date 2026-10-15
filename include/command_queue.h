@@ -37,6 +37,17 @@ struct DeviceStates {
   bool floorOn;
   bool overheadOn; // Backward-compatible alias for floorOn
   bool deskOn;     // Desk Lamp state from closed-loop sensor
+  bool ceilingOn;  // Ceiling Lights state
+};
+
+// Configurable target lights for ALL ON / ALL OFF master macros
+struct MacroTargets {
+  bool floor;
+  bool ceiling;
+  bool poster;
+  bool desk;
+  bool bedside;
+  bool donut;
 };
 
 // Queue Engine & Hardware Interface
@@ -73,6 +84,10 @@ public:
   void loadStatesFromNVS();
   void saveStatesToNVS();
 
+  // Macro target settings
+  MacroTargets getMacroTargets() const { return macroTargets; }
+  void setMacroTargets(const MacroTargets& targets);
+
 private:
   static const size_t QUEUE_CAPACITY = 48;
   QueueStep queue[QUEUE_CAPACITY];
@@ -90,6 +105,9 @@ private:
   StateChangeCallback stateChangeCb;
 
   DeviceStates states;
+  MacroTargets macroTargets;
+  void loadMacroTargets();
+  void saveMacroTargets();
 
   bool enqueue(const QueueStep& step);
   bool isQueueEmpty() const { return queueCount == 0; }

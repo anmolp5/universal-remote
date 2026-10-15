@@ -206,6 +206,21 @@ void setupWebServer() {
     server.send(200, "application/json", "{\"success\":true}");
   });
 
+  // Ceiling Lights BLE Controls
+  server.on("/api/ceiling/color", HTTP_POST, []() {
+    uint8_t r = server.hasArg("r") ? server.arg("r").toInt() : 255;
+    uint8_t g = server.hasArg("g") ? server.arg("g").toInt() : 255;
+    uint8_t b = server.hasArg("b") ? server.arg("b").toInt() : 255;
+    bleManager.setCeilingColor(r, g, b);
+    server.send(200, "application/json", "{\"success\":true}");
+  });
+
+  server.on("/api/ceiling/brightness", HTTP_POST, []() {
+    uint8_t val = server.hasArg("value") ? server.arg("value").toInt() : 100;
+    bleManager.setCeilingBrightness(val);
+    server.send(200, "application/json", "{\"success\":true}");
+  });
+
   // Hybrid BLE Management API
   server.on("/api/ble/release", HTTP_POST, []() {
     bleManager.releaseBle();
@@ -220,7 +235,50 @@ void setupWebServer() {
   server.on("/api/ble/status", HTTP_GET, []() {
     String res = "{\"floorConnected\":" + String(bleManager.isFloorConnected() ? "true" : "false") +
                  ",\"donutConnected\":" + String(bleManager.isDonutConnected() ? "true" : "false") +
+                 ",\"ceilingConnected\":" + String(bleManager.isCeilingConnected() ? "true" : "false") +
+                 ",\"ceilingMac\":\"" + bleManager.getCeilingMac() + "\"" +
                  ",\"released\":" + String(bleManager.isReleased() ? "true" : "false") + "}";
+    server.send(200, "application/json", res);
+  });
+
+  // BLE Scan Endpoint (Discovers nearby ELK-BLEDOM / BLE lamps)
+  server.on("/api/ble/scan", HTTP_GET, []() {
+    uint32_t sec = server.hasArg("duration") ? server.arg("duration").toInt() : 4;
+    String scanJson = bleManager.scanNearbyDevices(sec);
+    server.send(200, "application/json", scanJson);
+  });
+
+  // Ceiling Lights Dynamic MAC Configuration
+  server.on("/api/ble/ceiling_mac", HTTP_POST, []() {
+    if (server.hasArg("mac")) {
+      String mac = server.arg("mac");
+      bleManager.setCeilingMac(mac);
+      server.send(200, "application/json", "{\"success\":true,\"mac\":\"" + mac + "\"}");
+    } else {
+      server.send(400, "application/json", "{\"error\":\"Missing mac argument\"}");
+    }
+  });
+
+  // Macro Target Lights Settings API
+  server.on("/api/settings/macro", HTTP_ANY, []() {
+    MacroTargets t = cmdQueue.getMacroTargets();
+    if (server.hasArg("floor"))   t.floor   = (server.arg("floor") == "1" || server.arg("floor").equalsIgnoreCase("true"));
+    if (server.hasArg("ceiling")) t.ceiling = (server.arg("ceiling") == "1" || server.arg("ceiling").equalsIgnoreCase("true"));
+    if (server.hasArg("poster"))  t.poster  = (server.arg("poster") == "1" || server.arg("poster").equalsIgnoreCase("true"));
+    if (server.hasArg("desk"))    t.desk    = (server.arg("desk") == "1" || server.arg("desk").equalsIgnoreCase("true"));
+    if (server.hasArg("bedside")) t.bedside = (server.arg("bedside") == "1" || server.arg("bedside").equalsIgnoreCase("true"));
+    if (server.hasArg("donut"))   t.donut   = (server.arg("donut") == "1" || server.arg("donut").equalsIgnoreCase("true"));
+
+    if (server.method() == HTTP_POST) {
+      cmdQueue.setMacroTargets(t);
+    }
+
+    String res = "{\"floor\":" + String(t.floor ? "true" : "false") +
+                 ",\"ceiling\":" + String(t.ceiling ? "true" : "false") +
+                 ",\"poster\":" + String(t.poster ? "true" : "false") +
+                 ",\"desk\":" + String(t.desk ? "true" : "false") +
+                 ",\"bedside\":" + String(t.bedside ? "true" : "false") +
+                 ",\"donut\":" + String(t.donut ? "true" : "false") + "}";
     server.send(200, "application/json", res);
   });
 #endif
@@ -327,6 +385,38 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   if (action.startsWith("DONUT_BRIGHTNESS:") || action.startsWith("donut_brightness:")) {
     uint8_t val = action.substring(17).toInt();
     bleManager.setDonutBrightness(val);
+    return;
+  }
+  if (action.startsWith("CEILING_COLOR:") || action.startsWith("ceiling_color:")) {
+    String hex = action.substring(14);
+    hex.replace("#", "");
+    long num = strtol(hex.c_str(), NULL, 16);
+    bleManager.setCeilingColor((num >> 16) & 0xFF, (num >> 8) & 0xFF, num & 0xFF);
+    return;
+  }
+  if (action.startsWith("CEILING_BRIGHTNESS:") || action.startsWith("ceiling_brightness:")) {
+    uint8_t val = action.substring(19).toInt();
+    bleManager.setCeilingBrightness(val);
+    return;
+  }
+  if (action.startsWith("SET_MACRO:") || action.startsWith("set_macro:")) {
+    int firstColon = action.indexOf(':');
+    int secondColon = action.indexOf(':', firstColon + 1);
+    if (firstColon != -1 && secondColon != -1) {
+      String key = action.substring(firstColon + 1, secondColon);
+      bool val = action.substring(secondColon + 1).toInt() != 0;
+      MacroTargets t = cmdQueue.getMacroTargets();
+      if (key.equalsIgnoreCase("floor")) t.floor = val;
+      else if (key.equalsIgnoreCase("ceiling")) t.ceiling = val;
+      else if (key.equalsIgnoreCase("poster")) t.poster = val;
+      else if (key.equalsIgnoreCase("desk")) t.desk = val;
+      else if (key.equalsIgnoreCase("bedside")) t.bedside = val;
+      else if (key.equalsIgnoreCase("donut")) t.donut = val;
+      cmdQueue.setMacroTargets(t);
+      if (mqttClient.connected()) {
+        mqttClient.publish(MQTT_TOPIC_STATUS, cmdQueue.getStatesJson().c_str(), true);
+      }
+    }
     return;
   }
   if (action.equalsIgnoreCase("BLE_RELEASE")) {

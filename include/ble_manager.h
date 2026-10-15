@@ -32,6 +32,18 @@ public:
   bool setDonutBrightness(uint8_t percent);
   bool setDonutColor(uint8_t r, uint8_t g, uint8_t b);
 
+  // Control Ceiling Lights (ELK-BLEDOM)
+  bool setCeilingPower(bool on);
+  bool setCeilingBrightness(uint8_t percent);
+  bool setCeilingColor(uint8_t r, uint8_t g, uint8_t b);
+  bool adjustCeilingBrightness(bool brighter);
+  bool adjustCeilingTemp(bool warmer);
+  void setCeilingMac(const String& mac);
+  String getCeilingMac() const { return ceilingMac; }
+
+  // BLE Device Scanner
+  String scanNearbyDevices(uint32_t durationSec = 4);
+
   // Hybrid Management
   void releaseBle();
   void reconnectBle();
@@ -43,9 +55,11 @@ public:
   // State inspection
   bool isFloorConnected();
   bool isDonutConnected();
+  bool isCeilingConnected();
   bool isReleased() const { return userReleased; }
   uint8_t getFloorBrightness() const { return floorBrightness; }
   uint8_t getDonutBrightness() const { return donutBrightness; }
+  uint8_t getCeilingBrightness() const { return ceilingBrightness; }
 
   void setStateCallback(BleStateCallback cb) { stateCallback = cb; }
 
@@ -53,6 +67,7 @@ private:
   bool connectDevice(const char* mac, NimBLEClient*& pClient, NimBLERemoteCharacteristic*& pChar, NimBLERemoteCharacteristic*& pNotifyChar, const char* label);
   bool ensureFloorConnected();
   bool ensureDonutConnected();
+  bool ensureCeilingConnected();
   bool sendRaw(NimBLEClient* pClient, NimBLERemoteCharacteristic* pChar, const uint8_t* data, size_t len);
 
   void loadSettingsFromNVS();
@@ -65,10 +80,14 @@ private:
   NimBLEClient* pDonutClient;
   NimBLERemoteCharacteristic* pDonutChar;
 
+  NimBLEClient* pCeilingClient;
+  NimBLERemoteCharacteristic* pCeilingChar;
+
   bool userReleased;
   bool isEnforcing;
   unsigned long lastFloorRetry;
   unsigned long lastDonutRetry;
+  unsigned long lastCeilingRetry;
   unsigned long lastCommandTime;
 
   bool floorTargetOn;
@@ -81,6 +100,11 @@ private:
 
   uint8_t donutR, donutG, donutB;
   uint8_t donutBrightness;
+
+  String ceilingMac;
+  uint8_t ceilingR, ceilingG, ceilingB;
+  uint8_t ceilingBrightness;
+  int8_t ceilingTempStep; // -2 (cool) to +2 (warm)
 
   BleStateCallback stateCallback;
 };

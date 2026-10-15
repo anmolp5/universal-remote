@@ -19,6 +19,20 @@ const uint8_t RF_PIN_BRIGHTER = 23; // D23 / GPIO23
 // BLE Peripheral MAC Addresses
 #define FLOOR_LAMP_BLE_ADDR "be:28:fe:00:07:1b" // Lotus Lamp MELK-OA10WCT
 #define DONUT_LAMP_BLE_ADDR "be:67:00:41:85:77" // Donut Lamp ELK-BLEDOM07
+#define CEILING_LIGHT_BLE_ADDR "be:68:6e:00:c2:a8" // Ceiling Lights ELK-BLEDOM FE
+
+// Ceiling Lights Default Simulated White Presets (RGB)
+#define CEILING_RGB_WARM_R    255
+#define CEILING_RGB_WARM_G    165
+#define CEILING_RGB_WARM_B    60
+
+#define CEILING_RGB_NEUTRAL_R 255
+#define CEILING_RGB_NEUTRAL_G 235
+#define CEILING_RGB_NEUTRAL_B 210
+
+#define CEILING_RGB_COOL_R    210
+#define CEILING_RGB_COOL_G    230
+#define CEILING_RGB_COOL_B    255
 
 #else
 // ESP8266 Safe GPIOs

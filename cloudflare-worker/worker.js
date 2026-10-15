@@ -65,6 +65,15 @@ export default {
             '/floor_dimmer',
             '/floor_warmer',
             '/floor_cooler',
+            '/ceiling_on',
+            '/ceiling_off',
+            '/ceiling_power',
+            '/ceiling_brighter',
+            '/ceiling_dimmer',
+            '/ceiling_warmer',
+            '/ceiling_cooler',
+            '/ceiling_color',
+            '/ceiling_brightness',
             '/rf_power',
             '/rf_brighter',
             '/rf_dimmer',
@@ -102,6 +111,12 @@ export default {
       } else if (action === 'floor_color') {
         const hex = url.searchParams.get('hex') || 'FFFFFF';
         payload = `FLOOR_COLOR:#${hex.replace('#', '')}`;
+      } else if (action === 'ceiling_color') {
+        const hex = url.searchParams.get('hex') || 'FFFFFF';
+        payload = `CEILING_COLOR:#${hex.replace('#', '')}`;
+      } else if (action === 'ceiling_brightness') {
+        const val = url.searchParams.get('val') || url.searchParams.get('value') || '100';
+        payload = `CEILING_BRIGHTNESS:${val}`;
       } else if (action === 'donut_color') {
         const hex = url.searchParams.get('hex') || 'FFFFFF';
         payload = `DONUT_COLOR:#${hex.replace('#', '')}`;

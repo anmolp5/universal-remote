@@ -21,12 +21,54 @@ CommandQueue::CommandQueue()
   states.floorOn    = false;
   states.overheadOn = false;
   states.deskOn     = false;
+  states.ceilingOn  = false;
+
+  macroTargets.floor   = true;
+  macroTargets.ceiling = true;
+  macroTargets.poster  = true;
+  macroTargets.desk    = true;
+  macroTargets.bedside = true;
+  macroTargets.donut   = true;
 }
 
 #if defined(ESP32)
 #include <Preferences.h>
 static Preferences cmdQueuePrefs;
 #endif
+
+void CommandQueue::loadMacroTargets() {
+#if defined(ESP32)
+  cmdQueuePrefs.begin("uremote_macro", true);
+  macroTargets.floor   = cmdQueuePrefs.getBool("floor", true);
+  macroTargets.ceiling = cmdQueuePrefs.getBool("ceiling", true);
+  macroTargets.poster  = cmdQueuePrefs.getBool("poster", true);
+  macroTargets.desk    = cmdQueuePrefs.getBool("desk", true);
+  macroTargets.bedside = cmdQueuePrefs.getBool("bedside", true);
+  macroTargets.donut   = cmdQueuePrefs.getBool("donut", true);
+  cmdQueuePrefs.end();
+#endif
+}
+
+void CommandQueue::saveMacroTargets() {
+#if defined(ESP32)
+  cmdQueuePrefs.begin("uremote_macro", false);
+  cmdQueuePrefs.putBool("floor", macroTargets.floor);
+  cmdQueuePrefs.putBool("ceiling", macroTargets.ceiling);
+  cmdQueuePrefs.putBool("poster", macroTargets.poster);
+  cmdQueuePrefs.putBool("desk", macroTargets.desk);
+  cmdQueuePrefs.putBool("bedside", macroTargets.bedside);
+  cmdQueuePrefs.putBool("donut", macroTargets.donut);
+  cmdQueuePrefs.end();
+#endif
+}
+
+void CommandQueue::setMacroTargets(const MacroTargets& targets) {
+  macroTargets = targets;
+  saveMacroTargets();
+  Serial.printf("[MacroTargets] Updated: Floor=%d, Ceil=%d, Post=%d, Desk=%d, Bed=%d, Donut=%d\n",
+    macroTargets.floor, macroTargets.ceiling, macroTargets.poster,
+    macroTargets.desk, macroTargets.bedside, macroTargets.donut);
+}
 
 void CommandQueue::loadStatesFromNVS() {
 #if defined(ESP32)
@@ -37,9 +79,13 @@ void CommandQueue::loadStatesFromNVS() {
   states.floorOn    = cmdQueuePrefs.getBool("floor", false);
   states.overheadOn = states.floorOn;
   states.deskOn     = cmdQueuePrefs.getBool("desk", false);
+  states.ceilingOn  = cmdQueuePrefs.getBool("ceiling", false);
   cmdQueuePrefs.end();
-  Serial.printf("[NVS] Restored states: Floor=%d, Donut=%d, Desk=%d, Bedside=%d, Poster=%d\n",
-    states.floorOn, states.donutOn, states.deskOn, states.bedsideOn, states.posterOn);
+
+  loadMacroTargets();
+
+  Serial.printf("[NVS] Restored states: Floor=%d, Ceil=%d, Donut=%d, Desk=%d, Bedside=%d, Poster=%d\n",
+    states.floorOn, states.ceilingOn, states.donutOn, states.deskOn, states.bedsideOn, states.posterOn);
 #endif
 }
 
@@ -51,6 +97,7 @@ void CommandQueue::saveStatesToNVS() {
   cmdQueuePrefs.putBool("bedside", states.bedsideOn);
   cmdQueuePrefs.putBool("floor", states.floorOn);
   cmdQueuePrefs.putBool("desk", states.deskOn);
+  cmdQueuePrefs.putBool("ceiling", states.ceilingOn);
   cmdQueuePrefs.end();
 #endif
 }
@@ -212,20 +259,30 @@ void CommandQueue::enqueueRFPulse(uint8_t pin, const char* label) {
 }
 
 void CommandQueue::enqueueMacroAllOn() {
-  Serial.println(F("[Macro] Queuing Smart ALL ON (Instant Concurrent)..."));
+  Serial.println(F("[Macro] Queuing Smart ALL ON (Selective Targets)..."));
 
 #if defined(ESP32)
   // 1. Floor Lamp via Lotus Lamp BLE
-  bleManager.setFloorPower(true);
-  states.floorOn = true;
-  states.overheadOn = true;
+  if (macroTargets.floor) {
+    bleManager.setFloorPower(true);
+    states.floorOn = true;
+    states.overheadOn = true;
+  }
 
-  // 2. Donut Lamp via BLE
-  bleManager.setDonutPower(true);
-  states.donutOn = true;
+  // 2. Ceiling Lights via ELK BLE
+  if (macroTargets.ceiling) {
+    bleManager.setCeilingPower(true);
+    states.ceilingOn = true;
+  }
+
+  // 3. Donut Lamp via BLE
+  if (macroTargets.donut) {
+    bleManager.setDonutPower(true);
+    states.donutOn = true;
+  }
 #else
-  // 1. RF Floor Lamp - Trigger IMMEDIATELY at t=0 concurrently with IR
-  if (!states.floorOn && !states.overheadOn) {
+  // 1. RF Floor Lamp
+  if (macroTargets.floor && !states.floorOn && !states.overheadOn) {
     triggerRFAsync(RF_PIN_POWER, "Floor Lamp (Smart Turn ON - Concurrent)");
     states.floorOn = true;
     states.overheadOn = true;
@@ -234,45 +291,63 @@ void CommandQueue::enqueueMacroAllOn() {
   }
 
   // 2. Donut Lamp ON (Trigger FIRST in IR queue: NEC 0x0000 / 0x40)
-  QueueStep donutStep  = { STEP_IR_NEC, 0, DONUT_ADDR,  DONUT_CMD_ON,  0, nullptr, 0, 0, MACRO_STEP_DELAY_MS, "Donut Lamp ON" };
-  enqueue(donutStep);
-  states.donutOn = true;
+  if (macroTargets.donut) {
+    QueueStep donutStep  = { STEP_IR_NEC, 0, DONUT_ADDR,  DONUT_CMD_ON,  0, nullptr, 0, 0, MACRO_STEP_DELAY_MS, "Donut Lamp ON" };
+    enqueue(donutStep);
+    states.donutOn = true;
+  }
 #endif
 
-  // 3. Poster Light ON (NEC 0x7386 / 0x03)
-  QueueStep posterStep = { STEP_IR_NEC, 0, POSTER_ADDR, POSTER_CMD_ON, 0, nullptr, 0, 0, MACRO_STEP_DELAY_MS, "Poster Light ON" };
-  enqueue(posterStep);
-  states.posterOn = true;
-
-  // 4. Bedside Lamp (Pulse distance protocol: only toggle if currently OFF)
-  if (!states.bedsideOn) {
-    QueueStep bedsideStep = { STEP_IR_BEDSIDE, 0, 0, 0, BEDSIDE_CMD_POWER, nullptr, 0, 0, MACRO_STEP_DELAY_MS, "Bedside Lamp (Smart Turn ON)" };
-    enqueue(bedsideStep);
-    states.bedsideOn = true;
-  } else {
-    Serial.println(F("[Macro] Bedside Lamp already assumed ON, skipping toggle."));
+  // 4. Poster Light ON (NEC 0x7386 / 0x03)
+  if (macroTargets.poster) {
+    QueueStep posterStep = { STEP_IR_NEC, 0, POSTER_ADDR, POSTER_CMD_ON, 0, nullptr, 0, 0, MACRO_STEP_DELAY_MS, "Poster Light ON" };
+    enqueue(posterStep);
+    states.posterOn = true;
   }
 
-  // 5. Desk Lamp (Smart Touch via dedicated ESP8266 controller)
-  triggerDeskLamp("ON");
-  states.deskOn = true;
+  // 5. Bedside Lamp (Pulse distance protocol: only toggle if currently OFF)
+  if (macroTargets.bedside) {
+    if (!states.bedsideOn) {
+      QueueStep bedsideStep = { STEP_IR_BEDSIDE, 0, 0, 0, BEDSIDE_CMD_POWER, nullptr, 0, 0, MACRO_STEP_DELAY_MS, "Bedside Lamp (Smart Turn ON)" };
+      enqueue(bedsideStep);
+      states.bedsideOn = true;
+    } else {
+      Serial.println(F("[Macro] Bedside Lamp already assumed ON, skipping toggle."));
+    }
+  }
+
+  // 6. Desk Lamp (Smart Touch via dedicated ESP8266 controller)
+  if (macroTargets.desk) {
+    triggerDeskLamp("ON");
+    states.deskOn = true;
+  }
 }
 
 void CommandQueue::enqueueMacroAllOff() {
-  Serial.println(F("[Macro] Queuing Smart ALL OFF (Instant Concurrent)..."));
+  Serial.println(F("[Macro] Queuing Smart ALL OFF (Selective Targets)..."));
 
 #if defined(ESP32)
   // 1. Floor Lamp via Lotus Lamp BLE
-  bleManager.setFloorPower(false);
-  states.floorOn = false;
-  states.overheadOn = false;
+  if (macroTargets.floor) {
+    bleManager.setFloorPower(false);
+    states.floorOn = false;
+    states.overheadOn = false;
+  }
 
-  // 2. Donut Lamp via BLE
-  bleManager.setDonutPower(false);
-  states.donutOn = false;
+  // 2. Ceiling Lights via ELK BLE
+  if (macroTargets.ceiling) {
+    bleManager.setCeilingPower(false);
+    states.ceilingOn = false;
+  }
+
+  // 3. Donut Lamp via BLE
+  if (macroTargets.donut) {
+    bleManager.setDonutPower(false);
+    states.donutOn = false;
+  }
 #else
-  // 1. RF Floor Lamp - Trigger IMMEDIATELY at t=0 concurrently with IR
-  if (states.floorOn || states.overheadOn) {
+  // 1. RF Floor Lamp
+  if (macroTargets.floor && (states.floorOn || states.overheadOn)) {
     triggerRFAsync(RF_PIN_POWER, "Floor Lamp (Smart Turn OFF - Concurrent)");
     states.floorOn = false;
     states.overheadOn = false;
@@ -281,28 +356,36 @@ void CommandQueue::enqueueMacroAllOff() {
   }
 
   // 2. Donut Lamp OFF (Trigger FIRST in IR queue: NEC 0x0000 / 0x41)
-  QueueStep donutStep  = { STEP_IR_NEC, 0, DONUT_ADDR,  DONUT_CMD_OFF,  0, nullptr, 0, 0, MACRO_STEP_DELAY_MS, "Donut Lamp OFF" };
-  enqueue(donutStep);
-  states.donutOn = false;
+  if (macroTargets.donut) {
+    QueueStep donutStep  = { STEP_IR_NEC, 0, DONUT_ADDR,  DONUT_CMD_OFF,  0, nullptr, 0, 0, MACRO_STEP_DELAY_MS, "Donut Lamp OFF" };
+    enqueue(donutStep);
+    states.donutOn = false;
+  }
 #endif
 
-  // 3. Poster Light OFF (NEC 0x7386 / 0x98)
-  QueueStep posterStep = { STEP_IR_NEC, 0, POSTER_ADDR, POSTER_CMD_OFF, 0, nullptr, 0, 0, MACRO_STEP_DELAY_MS, "Poster Light OFF" };
-  enqueue(posterStep);
-  states.posterOn = false;
-
-  // 4. Bedside Lamp (Only toggle if currently ON)
-  if (states.bedsideOn) {
-    QueueStep bedsideStep = { STEP_IR_BEDSIDE, 0, 0, 0, BEDSIDE_CMD_POWER, nullptr, 0, 0, MACRO_STEP_DELAY_MS, "Bedside Lamp (Smart Turn OFF)" };
-    enqueue(bedsideStep);
-    states.bedsideOn = false;
-  } else {
-    Serial.println(F("[Macro] Bedside Lamp already assumed OFF, skipping toggle."));
+  // 4. Poster Light OFF (NEC 0x7386 / 0x98)
+  if (macroTargets.poster) {
+    QueueStep posterStep = { STEP_IR_NEC, 0, POSTER_ADDR, POSTER_CMD_OFF, 0, nullptr, 0, 0, MACRO_STEP_DELAY_MS, "Poster Light OFF" };
+    enqueue(posterStep);
+    states.posterOn = false;
   }
 
-  // 5. Desk Lamp (Smart Touch via dedicated ESP8266 controller)
-  triggerDeskLamp("OFF");
-  states.deskOn = false;
+  // 5. Bedside Lamp (Only toggle if currently ON)
+  if (macroTargets.bedside) {
+    if (states.bedsideOn) {
+      QueueStep bedsideStep = { STEP_IR_BEDSIDE, 0, 0, 0, BEDSIDE_CMD_POWER, nullptr, 0, 0, MACRO_STEP_DELAY_MS, "Bedside Lamp (Smart Turn OFF)" };
+      enqueue(bedsideStep);
+      states.bedsideOn = false;
+    } else {
+      Serial.println(F("[Macro] Bedside Lamp already assumed OFF, skipping toggle."));
+    }
+  }
+
+  // 6. Desk Lamp (Smart Touch via dedicated ESP8266 controller)
+  if (macroTargets.desk) {
+    triggerDeskLamp("OFF");
+    states.deskOn = false;
+  }
 }
 
 void CommandQueue::sendBedsideRawDirect(uint32_t data, uint16_t repeat) {
@@ -334,6 +417,9 @@ void CommandQueue::setDeviceState(const String& device, bool state) {
     states.floorOn = state;
     states.overheadOn = state;
     Serial.printf("[Resync] Floor Lamp state manually set to %s\n", state ? "ON" : "OFF");
+  } else if (device.equalsIgnoreCase("ceiling")) {
+    states.ceilingOn = state;
+    Serial.printf("[Resync] Ceiling Lights state manually set to %s\n", state ? "ON" : "OFF");
   } else if (device.equalsIgnoreCase("poster")) {
     states.posterOn = state;
     Serial.printf("[Resync] Poster Light state manually set to %s\n", state ? "ON" : "OFF");
@@ -348,16 +434,23 @@ void CommandQueue::setDeviceState(const String& device, bool state) {
 }
 
 String CommandQueue::getStatesJson() const {
-  char buf[200];
+  char buf[350];
   snprintf(buf, sizeof(buf),
-    "{\"poster\":%s,\"donut\":%s,\"bedside\":%s,\"floor\":%s,\"overhead\":%s,\"desk\":%s,\"busy\":%s}",
+    "{\"poster\":%s,\"donut\":%s,\"bedside\":%s,\"floor\":%s,\"overhead\":%s,\"desk\":%s,\"ceiling\":%s,\"busy\":%s,\"macroTargets\":{\"floor\":%s,\"ceiling\":%s,\"poster\":%s,\"desk\":%s,\"bedside\":%s,\"donut\":%s}}",
     states.posterOn ? "true" : "false",
     states.donutOn ? "true" : "false",
     states.bedsideOn ? "true" : "false",
     states.floorOn ? "true" : "false",
     states.overheadOn ? "true" : "false",
     states.deskOn ? "true" : "false",
-    isBusy() ? "true" : "false"
+    states.ceilingOn ? "true" : "false",
+    isBusy() ? "true" : "false",
+    macroTargets.floor ? "true" : "false",
+    macroTargets.ceiling ? "true" : "false",
+    macroTargets.poster ? "true" : "false",
+    macroTargets.desk ? "true" : "false",
+    macroTargets.bedside ? "true" : "false",
+    macroTargets.donut ? "true" : "false"
   );
   return String(buf);
 }
@@ -535,6 +628,48 @@ bool CommandQueue::dispatchAction(const String& action) {
     handled = true;
   }
 
+  // Ceiling Lights (ELK-BLEDOM BLE)
+  else if (action.equalsIgnoreCase("ceiling_power")) {
+    bool next = !states.ceilingOn;
+#if defined(ESP32)
+    bleManager.setCeilingPower(next);
+#endif
+    states.ceilingOn = next;
+    handled = true;
+  } else if (action.equalsIgnoreCase("ceiling_on")) {
+#if defined(ESP32)
+    bleManager.setCeilingPower(true);
+#endif
+    states.ceilingOn = true;
+    handled = true;
+  } else if (action.equalsIgnoreCase("ceiling_off")) {
+#if defined(ESP32)
+    bleManager.setCeilingPower(false);
+#endif
+    states.ceilingOn = false;
+    handled = true;
+  } else if (action.equalsIgnoreCase("ceiling_warmer")) {
+#if defined(ESP32)
+    bleManager.adjustCeilingTemp(true);
+#endif
+    handled = true;
+  } else if (action.equalsIgnoreCase("ceiling_cooler")) {
+#if defined(ESP32)
+    bleManager.adjustCeilingTemp(false);
+#endif
+    handled = true;
+  } else if (action.equalsIgnoreCase("ceiling_dimmer")) {
+#if defined(ESP32)
+    bleManager.adjustCeilingBrightness(false);
+#endif
+    handled = true;
+  } else if (action.equalsIgnoreCase("ceiling_brighter")) {
+#if defined(ESP32)
+    bleManager.adjustCeilingBrightness(true);
+#endif
+    handled = true;
+  }
+
   // Desk Lamp (Forward to dedicated controller)
   else if (action.equalsIgnoreCase("desk_on") || action.equalsIgnoreCase("desk_lamp_on") || action == "d") {
     triggerDeskLamp("ON");
@@ -561,6 +696,12 @@ bool CommandQueue::dispatchAction(const String& action) {
     return true;
   } else if (action.equalsIgnoreCase("sync_floor_off") || action.equalsIgnoreCase("sync_overhead_off")) {
     setDeviceState("floor", false);
+    return true;
+  } else if (action.equalsIgnoreCase("sync_ceiling_on")) {
+    setDeviceState("ceiling", true);
+    return true;
+  } else if (action.equalsIgnoreCase("sync_ceiling_off")) {
+    setDeviceState("ceiling", false);
     return true;
   } else if (action.equalsIgnoreCase("sync_poster_on")) {
     setDeviceState("poster", true);
